@@ -1,0 +1,18 @@
+# source data
+data/*
+!data/README.md
+*.csv
+
+# runtime output
+warehouse/
+spark-warehouse/
+.checkpoint/
+metastore_db/
+derby.log
+
+# credentials
+.env
+
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
