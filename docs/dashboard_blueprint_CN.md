@@ -1,138 +1,181 @@
-# Customer 360 Dashboard 蓝本（基于你的真实数据）
+# Dashboard 搭建规格
 
-> 完全基于上传的五个文件的真实字段。每个图表都注明：用哪些字段、怎么算、放在哪个 dashboard。
-> 全部为 SQL/规则聚合，**不需要 ML**。银行专属概念（AUM、分行）已替换为你数据支持的电商概念。
+六个 dashboard 的搭建说明。每张图注明数据来源表、字段、算法和验收标准。
+全部为 SQL 聚合，不涉及 ML。
+
+数字取自 2026-09-25 的 Run 2，完整记录见 `run_log.md`。
 
 ---
 
-## 你的数据能算什么（字段核实后）
+## 开始之前
 
-| 文件 | 可用于计算的关键字段 | 已确认的取值 |
+**前置条件（尚未完成）**
+
+| 条件 | 状态 | 说明 |
 |---|---|---|
-| orders (30万) | order_amount, order_date, status, payment_method, product_id, quantity | 日期范围 2023-12 ~ 2025-12；status=success/refunded/failed（多种脏写法）；4 种支付方式 |
-| clickstream (50万) | event_type, timestamp, customer_id, session_id | event_type = page_view / search / add_to_cart / login |
-| tickets (3万) | issue_type, sentiment, ticket_created | issue_type = product/refund/delay/payment；sentiment = positive/negative/neutral |
-| CRM (5万) | state, country, gender, source, signup_date, dob | source = referral/app/web；gender = F/M/O |
-| product (500) | category, price | category = clothing/kitchen/beauty/automotive/toys/sports/home/electronics（含脏值） |
+| Gold 表已生成 | 完成 | 七张表都在 MinIO 上，见下方数据源清单 |
+| Trino 服务 | **未完成** | 设计文档 §9 步骤 4，Superset 通过它查 Iceberg |
+| Superset 服务 | **未完成** | 设计文档 §9 步骤 5 |
+| `gold.dq_summary` 表 | **不存在** | Dashboard 6 需要，见该节说明 |
 
-**关联键**：customer_id 串起 orders/clickstream/tickets/CRM；product_id 串 orders/product。
+**可用数据源**
 
----
-
-## Dashboard 1 — 客户概览（Customer Overview）
-
-对应银行 repo 的"客户群 / 近期活跃"。
-
-| 图表 | 类型 | 用什么字段 · 怎么算 |
+| 表 | 行数 | 主要字段 |
 |---|---|---|
-| 总客户数 | 数字卡片 | CRM 去重 count(customer_id) |
-| 近30天活跃客户 | 数字卡片 | orders/clickstream 中 max(date) 往前 30 天内有行为的 distinct customer_id |
-| 客户按注册渠道 | 饼图 | CRM `source`（referral/app/web）分组计数 |
-| 客户按性别 | 饼图 | CRM `gender`（F/M/O）分组计数 |
-| 客户地理分布 | 地图 / 柱状图 | CRM `state` 或 `country` 分组计数（替代银行的"按分行"）|
-| 注册趋势 | 折线图 | CRM `signup_date` 按月聚合 |
+| `gold.customer_360` | 50,000 | customer_id, full_name_masked, state, country, gender, source, recency_days, frequency, monetary, segment, risk_level, risk_score, priority |
+| `gold.customer_rfm` | 44,937 | customer_id, recency_days, frequency, monetary, R, Fs, Ms, segment |
+| `gold.customer_risk` | 44,937 | customer_id, recency_days, segment, bad_orders, neg_tickets, risk_score, risk_level |
+| `gold.campaign_priority` | 44,937 | customer_id, segment, Ms, risk_score, priority |
+| `gold.category_penetration` | 8 | category, customers, penetration_pct |
+| `gold.behavior_funnel` | 4 | step_no, step, customers |
+| `gold.cart_abandoners` | 2,032 | customer_id, cart_events |
+| `silver.orders` | 182,946 | 清洗后的订单，含 status, payment_method, order_date, order_amount |
+| `silver.clickstream` | 321,343 | 清洗后的行为事件，含 event_type, event_time, session_id |
+| `silver.crm` | 50,000 | 清洗后的客户主数据，含 signup_date, dob |
+| `silver.product` | 410 | 清洗后的商品，含规范化后的 category, price |
+| `metadata.ingestion` | 每次运行 5 行 | source, rows, seconds, ingested_at |
+
+优先用 Gold 表。只有 Gold 层没覆盖的指标才去查 Silver 层，并在图表说明里注明原因。
+
+**命名约定**：Superset 里的 dataset 名称与表名一致，例如 `gold_customer_360`。
 
 ---
 
-## Dashboard 2 — RFM 分群与客户价值（Segmentation）
+## Dashboard 1 — 客户概览
 
-对应银行的"RFM segments"。这是核心分析，纯 SQL 可做。
+回答「我们有哪些客户」。
 
-**先算每个客户的 R/F/M（Gold 层）：**
-- **Recency** = 数据集最新日期 − 该客户最后一次成功下单日期（orders，status=success）
-- **Frequency** = 该客户成功订单数（count）
-- **Monetary** = 该客户成功订单总额（sum order_amount）
+| 图表 | 类型 | 数据源 | 字段与算法 |
+|---|---|---|---|
+| 客户总数 | 数字卡片 | `gold.customer_360` | `count(*)`，预期 50,000 |
+| 有成交客户数 | 数字卡片 | `gold.customer_360` | `count(*) where segment <> 'No Purchase'`，预期 44,937 |
+| 注册渠道分布 | 饼图 | `gold.customer_360` | 按 `source` 分组计数 |
+| 性别分布 | 饼图 | `gold.customer_360` | 按 `gender` 分组计数 |
+| 国家分布 | 柱状图，取前 15 | `gold.customer_360` | 按 `country` 分组计数降序 |
+| 注册趋势 | 折线图 | `silver.crm` | `signup_date` 按月聚合。Gold 层没有这个字段 |
 
-**再打分分群**（每个维度按分位数打 1-5 分，组合成分群）：
-
-| 图表 | 类型 | 说明 |
-|---|---|---|
-| RFM 分群分布 | 柱状图/饼图 | Champions / Loyal / At Risk / Hibernating（按 RFM 组合规则划分）|
-| 各分群平均消费 | 对比柱状图 | 每个分群的平均 Monetary |
-| 各分群客户数 | 数字卡片组 | 每个分群多少人 |
-| 高价值客户占比 | 数字卡片 | Monetary Top 20% 客户占比 |
-
-> RFM 分群规则示例：R高+F高+M高 = Champions；R低+F高 = At Risk；R低+F低 = Hibernating。规则你们自己定，写进报告。
+**验收**：前两个卡片的数字与上表一致；没有任何图表显示 email、phone 或 address。
 
 ---
 
-## Dashboard 3 — 流失风险与营销优先级（Churn Risk & Campaign）
+## Dashboard 2 — RFM 分群
 
-对应银行的"Churn risk / Campaign priority"。规则打分，**不用 ML**。
+回答「客户价值怎么分层」。
 
-**流失风险规则**（组合多个信号）：
-- Recency 很大（很久没买）→ 风险↑
-- 有 refund/failed 订单 → 风险↑
-- 有 negative sentiment 工单（tickets）→ 风险↑
-- 近期无 clickstream 活动 → 风险↑
+R、F、M 三个维度各按五分位打 1 到 5 分（`R`、`Fs`、`Ms` 列），再按组合规则划入五个分群。
 
-| 图表 | 类型 | 用什么字段 · 怎么算 |
-|---|---|---|
-| 流失风险分布 | 柱状图 | 按规则打分后分 Very Low/Low/Medium/High 计数 |
-| 各分群流失风险 | 堆叠柱状图 | RFM 分群 × 风险等级交叉 |
-| 负面情绪工单占比 | 数字卡片 | tickets 中 sentiment=negative 的客户数（流失预警信号）|
-| 营销优先级 | 柱状图 | 综合 RFM+风险，规则打 HIGH/MEDIUM/LOW（谁该优先联系）|
-| 退款率高的客户 | 表格 | 按 refund 订单占比排序 |
+| 图表 | 类型 | 数据源 | 字段与算法 |
+|---|---|---|---|
+| 分群人数 | 柱状图 | `gold.customer_rfm` | 按 `segment` 分组计数降序 |
+| 各分群平均消费 | 柱状图 | `gold.customer_rfm` | 按 `segment` 分组取 `avg(monetary)` |
+| 各分群平均购买频次 | 柱状图 | `gold.customer_rfm` | 按 `segment` 分组取 `avg(frequency)` |
+| 消费金额分布 | 直方图 | `gold.customer_rfm` | `monetary` 分箱 |
+| 高价值客户占比 | 数字卡片 | `gold.customer_rfm` | `Ms = 5` 的客户占比，按定义为 20% |
 
----
+Run 2 的分群人数：Champions 11,858、Hibernating 11,603、Loyal 8,730、Others 6,373、At Risk 6,373。
 
-## Dashboard 4 — 产品分析与渗透率（Product & Penetration）
-
-对应银行的"Recommended product mix / Product penetration"。
-
-| 图表 | 类型 | 用什么字段 · 怎么算 |
-|---|---|---|
-| 各品类销售额 | 柱状图 | orders join product → 按 category 汇总 order_amount（替代银行"按分行AUM"）|
-| 各品类订单量 | 柱状图 | 按 category 计数订单 |
-| 支付方式分布 | 饼图 | orders `payment_method` 分组（清洗后：cash/wallet/card/upi）|
-| 品类渗透率 | 柱状图 | 每个品类"买过的客户数 / 总客户数" |
-| 品类空白（推荐机会） | 表格 | 找"活跃但从没买过 X 品类"的客户 → 推荐目标 |
-| 复购 vs 单次客户 | 饼图 | Frequency=1 vs >1 的客户占比 |
+**验收**：五个分群人数相加等于 44,937；`monetary` 列没有 NaN。
 
 ---
 
-## Dashboard 5 — 行为分析（Behavioral，你独有的优势）
+## Dashboard 3 — 流失风险与营销优先级
 
-**这是银行 repo 没有的**——你有 clickstream 行为数据，能做它做不了的漏斗分析。
+回答「该先联系谁」。
 
-| 图表 | 类型 | 用什么字段 · 怎么算 |
-|---|---|---|
-| 行为事件分布 | 柱状图 | clickstream `event_type`（page_view/search/add_to_cart/login）计数 |
-| 转化漏斗 | 漏斗图 | login → search → page_view → add_to_cart → （下单）逐层客户数 |
-| 加购未下单客户 | 表格 | 有 add_to_cart 事件但无对应 success 订单的客户（营销机会）|
-| 活跃时段热力 | 热力图 | clickstream `timestamp` 按小时/星期聚合 |
-| 会话深度 | 柱状图 | 每个 session_id 的事件数分布 |
+风险分 = 沉默时长 + 退款或失败订单数 + 负面情绪工单数，三项各 0 到 2 分，合计 0 到 6 分，再映射成四个等级。
 
----
+| 图表 | 类型 | 数据源 | 字段与算法 |
+|---|---|---|---|
+| 风险等级分布 | 柱状图 | `gold.customer_risk` | 按 `risk_level` 分组计数 |
+| 分群 × 风险交叉 | 堆叠柱状图 | `gold.customer_risk` | 按 `segment` 分组，`risk_level` 堆叠 |
+| 风险分构成 | 柱状图 | `gold.customer_risk` | `avg(bad_orders)` 和 `avg(neg_tickets)` 按 `risk_level` 分组，看哪个信号在推高风险 |
+| 营销优先级分布 | 柱状图 | `gold.campaign_priority` | 按 `priority` 分组计数 |
+| 高优先级客户名单 | 表格 | `gold.customer_360` | `priority = 'HIGH'`，按 `monetary` 降序，列出脱敏姓名、分群、风险等级、金额 |
 
-## Dashboard 6 — 数据质量（Data Quality，展示你的治理成果）
+Run 2：风险等级 Medium 28,429、High 10,025、Low 4,750、Very Low 1,733；优先级 MEDIUM 28,763、HIGH 14,496、LOW 1,678。
 
-**强烈建议做**——直接可视化你 Silver 层 DQ 框架的成果，是很强的工程展示点。
-
-| 图表 | 类型 | 用什么字段 · 怎么算 |
-|---|---|---|
-| 各源被隔离记录数 | 柱状图 | 各源 quarantine 表的行数 |
-| 脏数据类型分布 | 柱状图 | 坏时间戳 / 负价格 / 缺失键 / 类别脏值 各多少 |
-| 清洗前后对比 | 对比柱状图 | 每个字段清洗前脏值数 vs 清洗后 |
-| 参照完整性缺口 | 数字卡片 | orders 中 product_id 不在 product 表的记录数 |
+**验收**：名单表格只出现 `full_name_masked`，不出现任何真实姓名。
 
 ---
 
-## 客户钻取（所有 dashboard 通用的最后一层）
+## Dashboard 4 — 产品与品类渗透
 
-对应银行的"Customer drill-down + 脱敏"。
+回答「哪些品类卖得动，哪些客户还没被覆盖」。
 
-- 从聚合指标点进去看**单个客户明细**
-- 只用**脱敏字段**：`full_name_masked`（对 CRM first_name+last_name 做脱敏，如 `M*** D**`）、customer_id、分群、RFM 值、风险等级
-- **不暴露** email、phone、address 等 PII —— 呼应你项目的"数据治理"主题
+| 图表 | 类型 | 数据源 | 字段与算法 |
+|---|---|---|---|
+| 品类渗透率 | 柱状图 | `gold.category_penetration` | `penetration_pct` 按 `category` 降序 |
+| 品类客户数 | 柱状图 | `gold.category_penetration` | `customers` 按 `category` 降序 |
+| 品类销售额 | 柱状图 | `silver.orders` join `silver.product` | 按 `category` 汇总 `order_amount`，仅 `status = 'success'`。Gold 层没有这张表 |
+| 支付方式分布 | 饼图 | `silver.orders` | 按 `payment_method` 分组计数，清洗后为 card / wallet / upi / cash / unknown |
+| 复购与单次客户 | 饼图 | `gold.customer_rfm` | `frequency = 1` 与 `frequency > 1` 两类占比 |
+
+Run 2 渗透率：clothing 30.8%、kitchen 29.6%、beauty 28.3%、home 26.7%、sports 25.0%、automotive 24.7%、electronics 24.5%、toys 23.0%。
+
+**验收**：品类恰好八个。如果出现 `clo`、`clothing-` 这类值，说明用的是旧数据，需要重跑 pipeline。
 
 ---
 
-## 实现顺序建议
+## Dashboard 5 — 行为与转化
 
-1. **先把 Gold 层的 customer_360 表和几张指标表算出来**（RFM、风险、渗透）——这是所有 dashboard 的数据源
-2. Superset 连上 Gold 表 → 定义 dataset（写 SQL 一次）
-3. 拖拽做图表 → 拼成上面 6 个 dashboard
-4. 优先做 Dashboard 1/2/3（核心 Customer 360 故事），行为(5)和数据质量(6)是你的差异化亮点
+回答「客户从浏览到下单流失在哪一步」。
 
-**注意**：dashboard 是最后一公里，前面"清洗→整合→算指标"才是主体工作量。这些指标全部是 SQL 聚合，不需要 ML。
+漏斗是嵌套的：每一步的客户集合都是上一步的子集，所以人数必然逐层递减，步与步之间的差就是流失。
+
+| 图表 | 类型 | 数据源 | 字段与算法 |
+|---|---|---|---|
+| 转化漏斗 | 漏斗图 | `gold.behavior_funnel` | `customers` 按 `step_no` 升序。**必须按 `step_no` 排序**，按名称排会乱 |
+| 各步流失率 | 柱状图 | `gold.behavior_funnel` | 相邻两步的差值除以前一步 |
+| 加购未下单客户 | 表格 | `gold.cart_abandoners` | 按 `cart_events` 降序，营销机会名单 |
+| 活跃时段 | 热力图 | `silver.clickstream` | `event_time` 按星期 × 小时 聚合计数 |
+| 会话深度 | 直方图 | `silver.clickstream` | 按 `session_id` 分组计数，再对事件数分箱 |
+
+Run 2 漏斗：page_view 47,260 → search 29,643 → add_to_cart 18,745 → purchase 17,538，流失率 37.3%、36.8%、6.4%。
+
+**验收**：漏斗四根柱子从左到右递减；加购未下单 2,032 人。
+
+---
+
+## Dashboard 6 — 数据质量
+
+回答「清洗拦下了什么」。这是项目治理能力的直接展示。
+
+**前置任务：Gold 层目前没有汇总表。** `quarantine.*` 表里的原因存在 `_err` 数组列中，Superset 无法直接分组。需要在 `silver_clean.py` 里把 `dq_summary()` 的结果写成一张 `gold.dq_summary` 表，字段为 `run_id, source, reason, count`。这项工作应在本 dashboard 之前完成。
+
+| 图表 | 类型 | 数据源 | 字段与算法 |
+|---|---|---|---|
+| 各源隔离率 | 柱状图 | `gold.dq_summary` | 每个源的隔离行数除以 Bronze 行数 |
+| 隔离原因分布 | 堆叠柱状图 | `gold.dq_summary` | 按 `source` 分组，`reason` 堆叠 |
+| 各层行数 | 漏斗图或柱状图 | 各层表 | Bronze 880,500 → Silver 576,197，被隔离 304,303 |
+| 摄取耗时 | 柱状图 | `metadata.ingestion` | `seconds` 按 `source` 分组，多次运行取最新 `run_id` |
+
+Run 2 隔离率：orders 39.0%、clickstream 35.7%、tickets 28.3%、product 18.0%、crm 0%。
+
+**验收**：各源有效行数与隔离行数相加等于该源的 Bronze 行数。
+
+---
+
+## 客户钻取
+
+所有 dashboard 共用的最后一层，数据源统一为 `gold.customer_360`。
+
+从任意聚合图表点进去，看单个客户的明细：脱敏姓名、地区、注册渠道、RFM 三值、分群、风险等级和分数、营销优先级。
+
+**只使用脱敏字段。** `gold.customer_360` 在生成时就已排除 email、phone、address，因此不存在误配置泄露 PII 的可能。这一点写进报告。
+
+---
+
+## 搭建顺序与分工
+
+| 顺序 | 内容 | 依赖 | 负责人 |
+|---|---|---|---|
+| 1 | 加 Trino 服务，验证能查到 Gold 表 | Gold 表已生成 | `[姓名]` |
+| 2 | 加 Superset，连上 Trino，建 dataset | Trino | `[姓名]` |
+| 3 | Dashboard 2、3 | dataset | `[姓名]` |
+| 4 | Dashboard 1、4 | dataset | `[姓名]` |
+| 5 | 补 `gold.dq_summary` 表，做 Dashboard 6 | 改 silver_clean.py 后重跑 | `[姓名]` |
+| 6 | Dashboard 5 | dataset | `[姓名]` |
+
+Dashboard 2、3 排在最前，因为它们完全基于 Gold 表，不需要额外开发，能最快验证 Superset 到 Iceberg 这条链路是通的。
+
+**做完必须导出。** Superset 的 dashboard 存在它自己的元数据库里，不在 Iceberg 中。导出成文件提交进仓库，否则换一台机器部署就全没了，交付要求的「可复现」也不成立。

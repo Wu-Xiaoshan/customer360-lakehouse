@@ -68,18 +68,28 @@ def build_penetration(succ, product, total_customers):
             .orderBy(F.desc("customers")))
 
 
-FUNNEL_STEPS = ["login", "search", "page_view", "add_to_cart"]
+FUNNEL_STEPS = ["page_view", "search", "add_to_cart"]
+
+FUNNEL_SCHEMA = "step_no int, step string, customers bigint"
 
 
-def build_funnel(click):
-    """Distinct customers per event type; `step_no` carries the funnel order."""
-    order_expr = F.create_map(*[x for i, s in enumerate(FUNNEL_STEPS)
-                                for x in (F.lit(s), F.lit(i + 1))])
-    return (click.groupBy("event_type")
-            .agg(F.countDistinct("customer_id").alias("customers"))
-            .withColumn("step_no", order_expr[F.col("event_type")])
-            .filter(F.col("step_no").isNotNull())
-            .orderBy("step_no"))
+def build_funnel(spark, click, succ):
+    """Nested funnel: each step counts customers who also did every earlier step.
+
+    Counting distinct customers per event type independently does not decrease from
+    step to step, because the event types are not nested. Intersecting the customer
+    sets does, and the drop between steps is the conversion loss.
+    """
+    stages, current = [], None
+    for i, event in enumerate(FUNNEL_STEPS, start=1):
+        doers = click.filter(F.col("event_type") == event).select("customer_id").distinct()
+        current = doers if current is None else current.join(doers, "customer_id")
+        stages.append((i, event, current.count()))
+
+    buyers = succ.select("customer_id").distinct()
+    stages.append((len(FUNNEL_STEPS) + 1, "purchase",
+                   current.join(buyers, "customer_id").count()))
+    return spark.createDataFrame(stages, schema=FUNNEL_SCHEMA)
 
 
 def build_cart_abandoners(click, succ):
@@ -139,7 +149,7 @@ def main():
     print(f"== Category penetration == -> {target('gold','category_penetration')}")
     pen.show()
 
-    funnel = build_funnel(click)
+    funnel = build_funnel(spark, click, succ)
     write_table(funnel, "gold", "behavior_funnel")
     print(f"== Behaviour funnel == -> {target('gold','behavior_funnel')}")
     funnel.show()

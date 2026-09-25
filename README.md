@@ -103,9 +103,12 @@ rules = [
 ]
 ```
 
-Measured on the current dataset: orders reject about 36% (bad dates, non-positive
-amounts), clickstream about 30% (missing `customer_id`), and tickets contain 1,323
-rows where the resolution timestamp precedes creation.
+Measured on the current dataset, 33.9% of the 880,500 source rows are quarantined:
+orders 39.0% (90,000 unparseable dates, 25,798 non-positive amounts, 12,830 NaN
+amounts), clickstream 35.7% (150,553 missing `customer_id`, 40,171 unparseable
+timestamps), tickets 28.3% (7,179 unparseable creation timestamps, 1,323 resolved
+before created), product 18.0%, CRM 0% because its defects are normalised rather
+than rejected.
 
 ## Layout
 

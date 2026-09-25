@@ -15,6 +15,11 @@ def rule_positive(col):
     return (f"nonpositive_{col}", F.col(col).isNotNull() & (F.col(col) <= 0))
 
 
+def rule_not_nan(col):
+    """NaN survives try_cast and is neither null nor <= 0, so it needs its own rule."""
+    return (f"nan_{col}", F.isnan(F.col(col)))
+
+
 def rule_bad_after_parse(col):
     """Null after a try_* cast, meaning the original value was malformed."""
     return (f"bad_{col}", F.col(col).isNull())

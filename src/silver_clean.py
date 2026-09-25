@@ -7,7 +7,7 @@ import sys, os
 sys.path.append(os.path.dirname(__file__))
 from spark_session import get_spark
 from lakehouse_io import read_table, write_table, ensure_namespaces, target
-from dq.framework import (rule_not_null, rule_positive, rule_bad_after_parse,
+from dq.framework import (rule_not_null, rule_positive, rule_not_nan, rule_bad_after_parse,
                           rule_regex_invalid, apply_dq, split_valid_quarantine, dq_summary)
 from pyspark.sql import functions as F
 
@@ -38,7 +38,7 @@ def clean_orders(spark):
         .withColumn("quantity", F.expr("try_cast(quantity as int)")))
     rules = [rule_not_null("customer_id"), rule_not_null("product_id"),
              rule_bad_after_parse("order_date"), rule_bad_after_parse("order_amount"),
-             rule_positive("order_amount")]
+             rule_not_nan("order_amount"), rule_positive("order_amount")]
     valid, quar = split_valid_quarantine(apply_dq(df, rules))
     dq_summary("orders", valid, quar); _write(valid, quar, "orders")
     return valid
@@ -102,12 +102,29 @@ def clean_crm(spark):
     return valid
 
 
+CATEGORIES = ["clothing", "kitchen", "beauty", "sports",
+              "home", "automotive", "toys", "electronics"]
+
+
+def _canonical_category(col):
+    """Map truncated (clo), suffixed (clothing-) and leetspeak (3l3ctronics) values
+    onto CATEGORIES. Anything unrecognisable becomes null and is quarantined."""
+    c = F.regexp_replace(F.lower(F.trim(col)), "[^a-z3]", "")
+    c = F.regexp_replace(c, "3", "e")
+    out = None
+    for name in CATEGORIES:
+        cond = (F.length(c) >= 3) & (F.lit(name).startswith(c) | c.startswith(name))
+        out = F.when(cond, F.lit(name)) if out is None else out.when(cond, F.lit(name))
+    return out
+
+
 def clean_product(spark):
     df = (_read(spark, "product")
         .withColumn("price", F.expr("try_cast(regexp_replace(price,'[\\s,]','') as double)"))
-        .withColumn("category", F.lower(F.trim(F.regexp_replace("category","3","e"))))
+        .withColumn("category", _canonical_category(F.col("category")))
         .withColumn("product_name", F.initcap(F.trim("product_name"))))
-    rules = [rule_not_null("product_id"), rule_positive("price"), rule_not_null("category")]
+    rules = [rule_not_null("product_id"), rule_positive("price"),
+             rule_not_nan("price"), rule_not_null("category")]
     valid, quar = split_valid_quarantine(apply_dq(df, rules))
     dq_summary("product", valid, quar); _write(valid, quar, "product")
     return valid
