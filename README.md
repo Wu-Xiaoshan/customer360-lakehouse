@@ -63,6 +63,11 @@ by `lakehouse_io.ensure_namespaces()`.
 
 Both modes run the same code; row counts and DQ percentages must match.
 
+Every time-based metric is measured from `AS_OF_DATE` (default 2025-12-01, the last
+order date), and records dated after it are rejected. Behaviour metrics cover the
+`BEHAVIOUR_WINDOW_DAYS` (default 90) before it. `run_pipeline.sh` tags each run with a
+fresh `RUN_ID`.
+
 The compose file currently starts Spark, the Iceberg REST catalog and MinIO. Trino
 and Superset are added in a later step; see [infra/README.md](infra/README.md).
 
@@ -72,7 +77,7 @@ Silver reads Bronze tables and Gold reads Silver tables, so the order is fixed.
 
 ```bash
 python3 src/bronze_ingest.py    # CSV      -> bronze.* + metadata.ingestion
-python3 src/silver_clean.py     # bronze.* -> silver.* + quarantine.*
+python3 src/silver_clean.py     # bronze.* -> silver.* + quarantine.* + metadata.{dq_summary,integrity}
 python3 src/gold_metrics.py     # silver.* -> gold.*
 ```
 
@@ -80,46 +85,59 @@ python3 src/gold_metrics.py     # silver.* -> gold.*
 
 | Table | Content | Dashboard |
 |---|---|---|
+| `customer_360` | one row per customer: profile, purchases, support, behaviour in the last 90 days | all |
 | `customer_rfm` | RFM quintiles and segment | 2 |
 | `customer_risk` | churn risk score and level | 3 |
 | `campaign_priority` | retention priority from value x risk | 3 |
-| `category_penetration` | distinct customers per category | 4 |
-| `behavior_funnel` | funnel steps with explicit `step_no` | 5 |
-| `cart_abandoners` | added to cart, never purchased | 5 |
-| `customer_360` | one row per customer, drill-down target | all |
+| `category_penetration` | buyers per category; orders whose product was quarantined count as `unknown` | 4 |
+| `behavior_funnel` | nested funnel over the 90-day window, with explicit `step_no` | 5 |
+| `cart_abandoners` | added to cart in the 90-day window without an order in it | 5 |
 
-`customer_360` carries `full_name_masked` only, with no email, phone or address.
-Customers with no orders are labelled `No Purchase`.
+`customer_360` has 48,200 rows, one per customer, and carries `full_name_masked` only,
+with no email, phone or address. Customers with no orders are labelled `No Purchase`.
 
 ## Data quality
 
-Rejected rows are quarantined with an `_err` array of reasons. Adding a check means
-adding one line to a source's `rules` list; `dq/framework.py` does not change.
+Checks work at four levels: field (parsing and normalisation), record (a row on its
+own), entity (one row per key, one golden record per CRM customer) and cross-source
+(reference date, signup order, orphans). A rule either rejects a row into
+`quarantine.<source>` with its reasons in `_err`, or warns and records the reason in
+the row's `_warn`. Adding a check means adding one line to a source's `rules` or
+`warnings` list.
 
 ```python
 rules = [
     rule_not_null("customer_id"),
     rule_positive("order_amount"),
+    rule_after("order_date", AS_OF_DATE),
 ]
+warnings = [rule_positive("quantity")]
 ```
 
-Measured on the current dataset, 33.9% of the 880,500 source rows are quarantined:
+Counts per source, severity and reason go to `metadata.dq_summary`; orphans per
+relationship, before and after cleaning, go to `metadata.integrity`.
+
+Measured on the current dataset, 36.7% of the 880,500 source rows are quarantined:
 orders 39.0% (90,000 unparseable dates, 25,798 non-positive amounts, 12,830 NaN
-amounts), clickstream 35.7% (150,553 missing `customer_id`, 40,171 unparseable
-timestamps), tickets 28.3% (7,179 unparseable creation timestamps, 1,323 resolved
-before created), product 18.0%, CRM 0% because its defects are normalised rather
-than rejected.
+amounts), clickstream 39.0% (150,553 missing `customer_id`, 40,171 unparseable
+timestamps, 23,189 after the reference date), tickets 30.1%, product 18.0%, CRM 3.6%
+(1,800 duplicate customer records). The source foreign keys are intact, but
+quarantining 90 products leaves 33,022 orders without a valid product.
 
 ## Layout
 
 ```
 src/
-  spark_session.py     Spark configuration, local / iceberg modes
+  spark_session.py     Spark configuration, AS_OF_DATE, behaviour window, RUN_ID
   lakehouse_io.py      read and write abstraction over both modes
   bronze_ingest.py     Bronze: ingestion + audit columns
-  silver_clean.py      Silver: cleaning, DQ, quarantine
+  silver_clean.py      Silver: cleaning, golden record, quarantine, run metadata
   gold_metrics.py      Gold: seven analytics tables
-  dq/framework.py      rule-based DQ framework
+  dq/framework.py      rules, warnings, deduplication, summaries
+docs/
+  design_document.md   design, data findings, implementation plan
+  dashboard_blueprint.md  chart-by-chart dashboard specification
+  run_log.md           plan and results of every pipeline run
 infra/
   docker-compose.yml   Spark, Iceberg REST catalog, MinIO
   LICENSE.upstream     upstream Apache-2.0 licence

@@ -6,7 +6,8 @@
 #
 # Both modes execute the same code, so row counts and DQ percentages must match.
 set -e
-echo "===== mode=${LAKEHOUSE_MODE:-local}  data=${LOCAL_DATA:-./data}  run=${RUN_ID:-run_2025_01} ====="
+export RUN_ID="${RUN_ID:-run_$(date -u +%Y%m%dT%H%M%SZ)}"
+echo "===== mode=${LAKEHOUSE_MODE:-local}  data=${LOCAL_DATA:-./data}  run=${RUN_ID}  as_of=${AS_OF_DATE:-2025-12-01} ====="
 echo "===== [1/3] Bronze ingestion ====="
 python3 src/bronze_ingest.py
 echo "===== [2/3] Silver cleaning and validation ====="

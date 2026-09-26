@@ -1,8 +1,9 @@
 """Rule-based data quality framework.
 
-A rule is a (name, condition) pair; each source passes its own list.
+A rule is a (name, condition) pair. Rules passed as `rules` reject a row into
+quarantine; rules passed as `warnings` keep the row and record the reason in `_warn`.
 """
-from pyspark.sql import functions as F, DataFrame
+from pyspark.sql import functions as F, DataFrame, Window
 
 
 # ---------- reusable rules ----------
@@ -29,30 +30,65 @@ def rule_regex_invalid(col, pattern, name=None):
     return (name or f"invalid_{col}", ~F.col(col).rlike(pattern))
 
 
+def rule_matches(col, pattern, name):
+    return (name, F.col(col).isNotNull() & F.lower(F.col(col)).rlike(pattern))
+
+
+def rule_after(col, date, name=None):
+    """Dated after the snapshot reference date."""
+    return (name or f"after_as_of_{col}", F.to_date(F.col(col)) > F.to_date(F.lit(date)))
+
+
 # ---------- core ----------
-def apply_dq(df: DataFrame, rules: list) -> DataFrame:
-    """Attach `_err`, an array of the rule names each row violates."""
-    err_cols = [F.when(cond, F.lit(name)) for name, cond in rules]
-    return df.withColumn("_err", F.array_compact(F.array(*err_cols)))
+def _reasons(rules):
+    cols = [F.when(cond, F.lit(name)) for name, cond in rules]
+    return F.array_compact(F.array(*cols)) if cols else F.array().cast("array<string>")
+
+
+def apply_dq(df: DataFrame, rules: list, warnings: list = ()) -> DataFrame:
+    """Attach `_err` (reject reasons) and `_warn` (warning reasons) arrays."""
+    return df.withColumn("_err", _reasons(rules)).withColumn("_warn", _reasons(list(warnings)))
 
 
 def split_valid_quarantine(df: DataFrame):
-    """Empty `_err` -> valid; non-empty -> quarantine."""
+    """Empty `_err` -> valid, which keeps its `_warn`; non-empty -> quarantine."""
     valid = df.filter(F.size("_err") == 0).drop("_err")
     quar = df.filter(F.size("_err") > 0)
     return valid, quar
 
 
-def dq_summary(source_name: str, valid_df: DataFrame, quar_df: DataFrame):
-    """Print and return the rejection counts by reason."""
-    nv, nq = valid_df.count(), quar_df.count()
+def dedup(df: DataFrame, key: str, order_by: list):
+    """Keep the first row per `key` under `order_by`; return (kept, duplicates).
+
+    Duplicates carry `_err = [duplicate_<key>]` so they can be added to the quarantine.
+    """
+    w = Window.partitionBy(key).orderBy(*order_by)
+    ranked = df.withColumn("_rn", F.row_number().over(w))
+    kept = ranked.filter(F.col("_rn") == 1).drop("_rn")
+    dups = (ranked.filter(F.col("_rn") > 1).drop("_rn")
+            .withColumn("_err", F.array(F.lit(f"duplicate_{key}"))))
+    return kept, dups
+
+
+SUMMARY_SCHEMA = ("run_id string, source string, severity string, reason string, "
+                  "rows bigint, source_rows bigint")
+
+
+def dq_summary(spark, run_id: str, source: str, valid: DataFrame, quar: DataFrame) -> DataFrame:
+    """Print reject and warning counts and return them as rows for metadata.dq_summary."""
+    nv, nq = valid.count(), quar.count()
     total = nv + nq
     if total == 0:
-        print(f"[DQ][{source_name}] total=0 — the Bronze table is empty; check the previous layer")
-        return quar_df.select(F.lit(None).alias("reason"), F.lit(0).alias("count")).limit(0)
-    print(f"[DQ][{source_name}] total={total} valid={nv} quarantined={nq} "
-          f"({round(nq/total*100,1)}% rejected)")
-    reasons = (quar_df.select(F.explode("_err").alias("reason"))
-               .groupBy("reason").count().orderBy(F.desc("count")))
-    reasons.show(truncate=False)
-    return reasons
+        print(f"[DQ][{source}] total=0 — the Bronze table is empty; check the previous layer")
+        return spark.createDataFrame([], SUMMARY_SCHEMA)
+    print(f"[DQ][{source}] total={total} valid={nv} quarantined={nq} "
+          f"({round(nq / total * 100, 1)}% rejected)")
+
+    def counts(df, col, severity):
+        return [(run_id, source, severity, r["reason"], r["count"], total)
+                for r in df.select(F.explode(col).alias("reason")).groupBy("reason").count().collect()]
+
+    rows = counts(quar, "_err", "reject") + counts(valid, "_warn", "warn")
+    summary = spark.createDataFrame(rows, SUMMARY_SCHEMA)
+    summary.orderBy("severity", F.desc("rows")).select("severity", "reason", "rows").show(truncate=False)
+    return summary

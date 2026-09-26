@@ -156,3 +156,103 @@ crm 1.67 s, tickets 1.08 s, product 0.65 s.
 
 **Next.** Design document §9 step 3, the local-mode cross-check, then Trino and
 Superset.
+
+---
+
+## Run 3 — 2026-09-26 — Customer 360 completeness
+
+**Goal.** Close the gaps an audit of the data found against what a Customer 360 needs:
+one row per customer, all five sources integrated into that row, and a common time
+frame.
+
+**Audit findings.**
+
+| Area | Finding |
+|---|---|
+| Grain | `customer_360` had 50,000 rows for 48,200 ids; 1,734 ids are duplicated, 481 of them with conflicting content |
+| Integration | clickstream covers 99.9% of customers and tickets 36%, yet `customer_360` carried no behaviour or support column |
+| Time | no reference date; orders end 2025-12-01 while clickstream runs 2025-09-02 to 2028-02; 13,450 events and 457 tickets fall after the last order |
+| Validity | quantity invalid in 45,651 orders (25%); about 14,900 orders and 1,711 tickets precede the customer's signup; 1,366 tickets disagree with their own resolution time; 33,022 orders vanished in an inner join after their product was quarantined |
+
+Verified and not acted on: emails and phones shared across ids belong to different
+people (for example five unrelated customers under `shared1459@hotmail.com`), so ids
+are not merged; source foreign keys have no orphans; clickstream device ids never
+appear in the CRM.
+
+**Changes.**
+
+| File | Change |
+|---|---|
+| `spark_session.py` | `AS_OF_DATE` 2025-12-01, `BEHAVIOUR_WINDOW_DAYS` 90, shared `RUN_ID` |
+| `run_pipeline.sh` | a fresh `RUN_ID` per run |
+| `dq/framework.py` | warning severity, `rule_after`, `rule_matches`, `dedup`, persistable `dq_summary` |
+| `silver_clean.py` | CRM golden record per customer; primary-key dedup on every source; reference-date rejection; cross-source and quantity warnings; `metadata.dq_summary` and `metadata.integrity` |
+| `gold_metrics.py` | recency from `AS_OF_DATE`; funnel and cart abandoners inside the 90-day window; `unknown` category bucket; `customer_360` with tenure, purchases, support and behaviour columns |
+
+**Decisions.** Orders and tickets dated before signup are warnings, since a guest order
+can precede account creation. Invalid quantity is a warning and is set to null; no
+metric uses it.
+
+**Plan.** Compile, run the pipeline, then assert: `customer_360` rows equal distinct
+ids equal `silver.crm` rows; nothing in Silver is dated after 2025-12-01; Silver plus
+quarantine equals Bronze for every source; the funnel decreases; the golden record for
+the `Parrish` / `Ppaarrrish` id keeps `Parrish`.
+
+**Result.** The first attempt, `run_20260926T163133Z`, stopped after Silver had
+written its tables and `metadata.dq_summary`: `explode` cannot be nested inside `trim`
+in `_devices()`. Its summary rows remain in `metadata.dq_summary` under that run_id.
+After the fix, `run_20260926T163523Z` succeeded in 4 min 18 s (18:35:22 to 18:39:40).
+
+| Source | Valid | Quarantined | Rate | Rejected | Warned |
+|---|---|---|---|---|---|
+| orders | 182,946 | 117,054 | 39.0% | bad_order_date 90,000; nonpositive_order_amount 25,798; nan_order_amount 12,830 | missing_quantity 27,521; nonpositive_quantity 18,130; order_before_signup 14,922; unknown_payment_method 13,016 |
+| clickstream | 305,114 | 194,886 | 39.0% | missing_customer_id 150,553; bad_event_time 40,171; after_as_of_event_time 23,189 | — |
+| tickets | 20,976 | 9,024 | 30.1% | bad_created 7,179; after_as_of_created 1,845; resolved_before_created 1,323 | ticket_before_signup 1,711; resolved_after_as_of 1,414; resolution_time_mismatch 1,310 |
+| product | 410 | 90 | 18.0% | nonpositive_price 45; missing_category 30; nan_price 26 | — |
+| crm | 48,200 | 1,800 | 3.6% | duplicate_customer_id 1,800 | corrupted_last_name 1,491; corrupted_first_name 1,464 |
+
+557,646 valid and 322,854 quarantined out of 880,500 rows, 36.7% overall.
+
+Integrity (`metadata.integrity`):
+
+| Relationship | Rows | Orphans vs Bronze | Orphans vs Silver |
+|---|---|---|---|
+| orders.product_id → product | 182,946 | 0 | 33,022 |
+| orders.customer_id → crm | 182,946 | 0 | 0 |
+| tickets.customer_id → crm | 20,976 | 0 | 0 |
+| clickstream.customer_id → crm | 305,114 | 0 | 0 |
+| clickstream.device_id → crm.device_ids | 305,114 | 305,114 | 305,114 |
+
+Gold:
+
+| Table | Run 2 | Run 3 |
+|---|---|---|
+| customer_360 | 50,000 rows for 48,200 ids | 48,200 rows, one per customer |
+| behavior_funnel | 47,260 → 29,643 → 18,745 → 17,538, all history | 47,055 → 28,644 → 17,568 → 5,320, 90-day window |
+| cart_abandoners | 2,032, never ordered at all | 20,652, no order within the window |
+| category_penetration | 8 categories | 8 categories plus unknown at 42.3% |
+| customer_rfm | 44,937 customers | 44,937 customers, recency from AS_OF_DATE |
+
+In the 90-day window, 30.3% of customers who went from page view through search to
+cart also ordered. The Run 2 figure of 93.6% compared three months of browsing with
+two years of orders.
+
+`customer_360` coverage: 44,937 customers with purchases, 16,877 with tickets, 48,104
+(99.8%) with behaviour in the window, 42,959 with a favourite category; mean tenure
+2,191 days.
+
+Verification: 13 of 13 checks passed, including one row per customer, `Parrish`
+kept over `Ppaarrrish` for id `e04c1a04-…`, nothing in Silver after 2025-12-01, and
+Silver plus quarantine equal to Bronze for every source.
+
+**New finding.** `session_id` does not identify a session: 305,114 events carry 8,000
+distinct values, each shared by 38.1 customers on average and at most 62, and none
+belongs to a single customer. The `sessions_90d` column added in this run was
+therefore meaningless, equal to `events_90d` for almost every customer, and was
+removed with a Gold-only rerun; `customer_360` has 23 columns.
+
+Ingestion: orders 9.45 s, clickstream 4.80 s, crm 1.69 s, tickets 1.13 s,
+product 0.70 s.
+
+**Next.** Design document §9 step 3, the local-mode cross-check, then Trino and
+Superset.

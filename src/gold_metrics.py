@@ -1,25 +1,30 @@
 """Gold layer: Silver tables -> seven analytics tables.
 
+  customer_360          one row per customer: profile, purchases, support, recent behaviour
   customer_rfm          RFM segmentation
   customer_risk         churn risk score
   campaign_priority     retention priority
-  category_penetration  distinct customers per category
-  behavior_funnel       conversion funnel
-  cart_abandoners       added to cart, never purchased
-  customer_360          one row per customer
+  category_penetration  buyers per category; orders whose product was quarantined count as unknown
+  behavior_funnel       nested conversion funnel over the behaviour window
+  cart_abandoners       carted in the behaviour window without an order in it
+
+Time is measured from AS_OF_DATE; behaviour metrics cover the BEHAVIOUR_WINDOW_DAYS before it.
 """
 import sys, os
 
 sys.path.append(os.path.dirname(__file__))
-from spark_session import get_spark
+from spark_session import get_spark, AS_OF_DATE, BEHAVIOUR_WINDOW_DAYS as W
 from lakehouse_io import read_table, write_table, ensure_namespaces, target
 from pyspark.sql import functions as F, Window
 
 
+def _as_of():
+    return F.to_date(F.lit(AS_OF_DATE))
+
+
 def build_rfm(succ):
-    max_date = succ.agg(F.max("order_date")).collect()[0][0]
     rfm = succ.groupBy("customer_id").agg(
-        F.datediff(F.lit(max_date), F.max("order_date")).alias("recency_days"),
+        F.datediff(_as_of(), F.max("order_date")).alias("recency_days"),
         F.count("*").alias("frequency"),
         F.round(F.sum("order_amount"), 2).alias("monetary"))
     rfm = (rfm
@@ -61,10 +66,12 @@ def build_priority(rfm, risk):
              .otherwise("LOW")))
 
 
-def build_penetration(succ, product, total_customers):
-    return (succ.join(product, "product_id").groupBy("category")
-            .agg(F.countDistinct("customer_id").alias("customers"))
-            .withColumn("penetration_pct", F.round(F.col("customers")/total_customers*100, 1))
+def build_penetration(succ, product):
+    buyers = succ.select("customer_id").distinct().count()
+    return (succ.join(product.select("product_id", "category"), "product_id", "left")
+            .withColumn("category", F.coalesce(F.col("category"), F.lit("unknown")))
+            .groupBy("category").agg(F.countDistinct("customer_id").alias("customers"))
+            .withColumn("penetration_pct", F.round(F.col("customers") / buyers * 100, 1))
             .orderBy(F.desc("customers")))
 
 
@@ -100,19 +107,53 @@ def build_cart_abandoners(click, succ):
     return carted.join(buyers, "customer_id", "left_anti").orderBy(F.desc("cart_events"))
 
 
-def build_customer_360(crm, rfm, risk, priority):
-    """Masked name, geography, RFM, risk and priority. No email, phone or address."""
-    masked = (crm
+def build_customer_360(crm, rfm, risk, priority, orders, succ, product, tickets, click_w):
+    """One row per customer: masked profile, purchases, support history and behaviour in
+    the window. No email, phone or address."""
+    as_of = _as_of()
+    profile = (crm
         .withColumn("full_name_masked",
             F.concat(F.substring("first_name", 1, 1), F.lit("*** "),
                      F.substring("last_name", 1, 1), F.lit("**")))
-        .select("customer_id","full_name_masked","state","country","gender","source"))
+        .withColumn("tenure_days", F.datediff(as_of, "signup_date"))
+        .select("customer_id", "full_name_masked", "state", "country", "gender", "source",
+                "tenure_days"))
 
-    return (masked
-        .join(rfm.select("customer_id","recency_days","frequency","monetary","segment"),
+    bad = (orders.filter(F.col("status").isin("refunded", "failed"))
+           .groupBy("customer_id").agg(F.count("*").alias("bad_orders")))
+
+    per_category = (succ.join(product.select("product_id", "category"), "product_id")
+                    .groupBy("customer_id", "category").count())
+    favourite = (per_category
+        .withColumn("_rn", F.row_number().over(
+            Window.partitionBy("customer_id").orderBy(F.desc("count"), "category")))
+        .filter(F.col("_rn") == 1)
+        .select("customer_id", F.col("category").alias("favourite_category")))
+
+    support = tickets.groupBy("customer_id").agg(
+        F.count("*").alias("tickets_total"),
+        F.sum(F.when(F.col("resolved").isNull() | (F.to_date("resolved") > as_of), 1)
+               .otherwise(0)).alias("open_tickets"),
+        F.sum(F.when(F.col("sentiment") == "negative", 1).otherwise(0)).alias("negative_tickets"),
+        F.max_by("issue_type", "created").alias("last_issue_type"))
+
+    behaviour = click_w.groupBy("customer_id").agg(
+        F.count("*").alias(f"events_{W}d"),
+        F.sum(F.when(F.col("event_type") == "add_to_cart", 1).otherwise(0)).alias(f"cart_events_{W}d"),
+        F.max("event_time").alias("last_event_time"))
+
+    counts = ["bad_orders", "tickets_total", "open_tickets", "negative_tickets",
+              f"events_{W}d", f"cart_events_{W}d"]
+    return (profile
+        .join(rfm.select("customer_id", "recency_days", "frequency", "monetary", "segment"),
               "customer_id", "left")
-        .join(risk.select("customer_id","risk_level","risk_score"), "customer_id", "left")
-        .join(priority.select("customer_id","priority"), "customer_id", "left")
+        .join(bad, "customer_id", "left")
+        .join(favourite, "customer_id", "left")
+        .join(support, "customer_id", "left")
+        .join(behaviour, "customer_id", "left")
+        .join(risk.select("customer_id", "risk_score", "risk_level"), "customer_id", "left")
+        .join(priority.select("customer_id", "priority"), "customer_id", "left")
+        .fillna(0, counts)
         .fillna({"segment": "No Purchase", "risk_level": "Unknown", "priority": "N/A"}))
 
 
@@ -126,8 +167,12 @@ def main():
     crm     = read_table(spark, "silver", "crm")
     click   = read_table(spark, "silver", "clickstream")
 
-    succ = orders.filter((F.col("status")=="success") &
-                         F.col("order_date").isNotNull() & (F.col("order_amount")>0))
+    succ = orders.filter((F.col("status")=="success") & F.col("order_date").isNotNull()
+                         & (F.col("order_amount")>0) & (F.col("order_date") <= _as_of()))
+    start = F.date_sub(_as_of(), W)
+    succ_w = succ.filter(F.col("order_date") >= start)
+    click_w = click.filter(F.to_date("event_time") >= start)
+    print(f"[Gold] as_of={AS_OF_DATE}  behaviour window={W} days")
 
     rfm = build_rfm(succ)
     write_table(rfm, "gold", "customer_rfm")
@@ -144,24 +189,26 @@ def main():
     print(f"== Campaign priority == -> {target('gold','campaign_priority')}")
     priority.groupBy("priority").count().orderBy(F.desc("count")).show()
 
-    pen = build_penetration(succ, product, rfm.count())
+    pen = build_penetration(succ, product)
     write_table(pen, "gold", "category_penetration")
     print(f"== Category penetration == -> {target('gold','category_penetration')}")
     pen.show()
 
-    funnel = build_funnel(spark, click, succ)
+    funnel = build_funnel(spark, click_w, succ_w)
     write_table(funnel, "gold", "behavior_funnel")
-    print(f"== Behaviour funnel == -> {target('gold','behavior_funnel')}")
+    print(f"== Behaviour funnel ({W} days) == -> {target('gold','behavior_funnel')}")
     funnel.show()
 
-    aband = build_cart_abandoners(click, succ)
+    aband = build_cart_abandoners(click_w, succ_w)
     write_table(aband, "gold", "cart_abandoners")
-    print(f"== Cart abandoners == -> {target('gold','cart_abandoners')}  {aband.count()} customers")
+    print(f"== Cart abandoners ({W} days) == -> {target('gold','cart_abandoners')}  {aband.count()} customers")
 
-    c360 = build_customer_360(crm, rfm, risk, priority)
+    c360 = build_customer_360(crm, rfm, risk, priority, orders, succ, product, tickets, click_w)
     write_table(c360, "gold", "customer_360")
-    print(f"== Customer 360 == -> {target('gold','customer_360')}  {c360.count()} rows")
-    c360.show(5, truncate=False)
+    c360 = read_table(spark, "gold", "customer_360")
+    print(f"== Customer 360 == -> {target('gold','customer_360')}  {c360.count()} rows, "
+          f"{c360.select('customer_id').distinct().count()} customers")
+    c360.show(2, truncate=False, vertical=True)
 
     print("[Gold] metrics complete")
     spark.stop()

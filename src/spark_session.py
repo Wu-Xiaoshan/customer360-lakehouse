@@ -40,3 +40,13 @@ SOURCES = {
     "tickets":     "support_tickets_30000_dirty.csv",
     "product":     "product_catalog_dirty_30pct.csv",
 }
+
+# Snapshot reference date, the last order date in the dataset. Records dated after it
+# are rejected and every time-based metric is measured from it.
+AS_OF_DATE = os.environ.get("AS_OF_DATE", "2025-12-01")
+
+# Days before AS_OF_DATE covered by the behaviour metrics.
+BEHAVIOUR_WINDOW_DAYS = int(os.environ.get("BEHAVIOUR_WINDOW_DAYS", "90"))
+
+# Shared by the three stages of one run; run_pipeline.sh sets a fresh value each time.
+RUN_ID = os.environ.get("RUN_ID", "run_manual")

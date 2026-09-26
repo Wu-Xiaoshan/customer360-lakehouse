@@ -10,7 +10,7 @@ import sys, os, time
 from datetime import datetime, timezone
 
 sys.path.append(os.path.dirname(__file__))
-from spark_session import get_spark, LOCAL_DATA, SOURCES
+from spark_session import get_spark, LOCAL_DATA, SOURCES, RUN_ID
 from lakehouse_io import sanitize_columns, write_table, ensure_namespaces, target
 from pyspark.sql import functions as F
 from pyspark.sql.types import (StructType, StructField, StringType,
@@ -43,9 +43,7 @@ def ingest_one(spark, name, filename, run_id):
 def main():
     spark = get_spark("bronze_ingest")
     ensure_namespaces(spark)
-    run_id = os.environ.get("RUN_ID", "run_2025_01")
-
-    metas = [ingest_one(spark, name, f, run_id) for name, f in SOURCES.items()]
+    metas = [ingest_one(spark, name, f, RUN_ID) for name, f in SOURCES.items()]
 
     total = sum(m[2] for m in metas)
     print(f"[Bronze] ingestion complete, {total} rows")

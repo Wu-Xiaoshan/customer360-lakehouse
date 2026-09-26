@@ -1,107 +1,132 @@
-== syntax check ==
-compiles ok
-=== pipeline start: 2026-09-25T17:20:01+02:00 ===
-===== mode=iceberg  data=/home/iceberg/data  run=run_2025_01 =====
+-rwxr-xr-x 1 wxs wxs 767 Sep 26 18:27 /home/wxs/customer360-lakehouse/run_pipeline.sh
+=== pipeline start: 2026-09-26T18:35:22+02:00 ===
+===== mode=iceberg  data=/home/iceberg/data  run=run_20260926T163523Z  as_of=2025-12-01 =====
 ===== [1/3] Bronze ingestion =====
 Setting default log level to "WARN".
 To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
-26/09/25 15:20:05 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
-[Stage 1:>                                                          (0 + 1) / 1]                                                                                [Stage 4:>                                                          (0 + 1) / 1]                                                                                [Stage 6:>                                                          (0 + 1) / 1]                                                                                [Stage 9:>                                                          (0 + 1) / 1]                                                                                [Stage 14:>                                                         (0 + 1) / 1]                                                                                [Stage 25:>                                                         (0 + 4) / 4][Stage 25:=============================>                            (2 + 2) / 4]                                                                                [Bronze] orders       rows=300000    9.57s  -> demo.bronze.orders
-[Bronze] clickstream  rows=500000    6.67s  -> demo.bronze.clickstream
-[Bronze] crm          rows= 50000    1.67s  -> demo.bronze.crm
-[Bronze] tickets      rows= 30000    1.08s  -> demo.bronze.tickets
-[Bronze] product      rows=   500    0.65s  -> demo.bronze.product
+26/09/26 16:35:26 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+[Stage 1:>                                                          (0 + 1) / 1]                                                                                [Stage 4:>                                                          (0 + 1) / 1]                                                                                [Stage 6:>                                                          (0 + 1) / 1]                                                                                [Stage 9:>                                                          (0 + 1) / 1]                                                                                [Stage 14:>                                                         (0 + 1) / 1]                                                                                [Stage 25:>                                                         (0 + 4) / 4][Stage 25:===========================================>              (3 + 1) / 4]                                                                                [Bronze] orders       rows=300000    9.45s  -> demo.bronze.orders
+[Bronze] clickstream  rows=500000     4.8s  -> demo.bronze.clickstream
+[Bronze] crm          rows= 50000    1.69s  -> demo.bronze.crm
+[Bronze] tickets      rows= 30000    1.13s  -> demo.bronze.tickets
+[Bronze] product      rows=   500     0.7s  -> demo.bronze.product
 [Bronze] ingestion complete, 880500 rows
 [Bronze] ingestion metadata -> demo.metadata.ingestion
 ===== [2/3] Silver cleaning and validation =====
 Setting default log level to "WARN".
 To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
-26/09/25 15:20:37 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
-[Stage 0:>                                                          (0 + 1) / 1]                                                                                [Stage 3:>                                                          (0 + 1) / 1]                                                                                [Stage 6:>                                                          (0 + 1) / 1]                                                                                [Stage 9:>                                                          (0 + 1) / 1]                                                                                [Stage 10:>                                                         (0 + 1) / 1]                                                                                [Stage 11:>                                                         (0 + 1) / 1]                                                                                [Stage 14:>                                                         (0 + 1) / 1]                                                                                [Stage 17:>                                                         (0 + 1) / 1]                                                                                [Stage 20:>                                                         (0 + 1) / 1]                                                                                [Stage 21:>                                                         (0 + 1) / 1]                                                                                [Stage 31:>                                                         (0 + 1) / 1]                                                                                [Stage 40:>                                                         (0 + 1) / 1]                                                                                [DQ][orders] total=300000 valid=182946 quarantined=117054 (39.0% rejected)
-+------------------------+-----+
-|reason                  |count|
-+------------------------+-----+
-|bad_order_date          |90000|
-|nonpositive_order_amount|25798|
-|nan_order_amount        |12830|
-+------------------------+-----+
-
-[Silver] orders       -> demo.silver.orders | demo.quarantine.orders
-[DQ][clickstream] total=500000 valid=321343 quarantined=178657 (35.7% rejected)
-+-------------------+------+
-|reason             |count |
-+-------------------+------+
-|missing_customer_id|150553|
-|bad_event_time     |40171 |
-+-------------------+------+
-
-[Silver] clickstream  -> demo.silver.clickstream | demo.quarantine.clickstream
-[DQ][tickets] total=30000 valid=21498 quarantined=8502 (28.3% rejected)
-+-----------------------+-----+
-|reason                 |count|
-+-----------------------+-----+
-|bad_created            |7179 |
-|resolved_before_created|1323 |
-+-----------------------+-----+
-
-[Silver] tickets      -> demo.silver.tickets | demo.quarantine.tickets
-[DQ][crm] total=50000 valid=50000 quarantined=0 (0.0% rejected)
-+------+-----+
-|reason|count|
-+------+-----+
-+------+-----+
+26/09/26 16:35:56 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+[Stage 0:>                                                          (0 + 1) / 1]                                                                                [Stage 6:>                                                          (0 + 1) / 1]                                                                                [Stage 18:>                                                         (0 + 1) / 1]                                                                                [Stage 24:>                                                         (0 + 4) / 4][Stage 24:===========================================>              (3 + 1) / 4]                                                                                [Stage 25:>                                                         (0 + 1) / 1][Stage 27:>                                                         (0 + 4) / 5][Stage 27:==============================================>           (4 + 1) / 5]                                                                                [Stage 28:>                                                         (0 + 1) / 1][Stage 30:==================================================>       (7 + 1) / 8]                                                                                [Stage 63:>                                                         (0 + 1) / 1]                                                                                [Stage 71:>                                                         (0 + 1) / 1][Stage 73:==============================================>           (4 + 1) / 5]                                                                                [Stage 79:>                                                         (0 + 1) / 1][Stage 81:==============================================>           (4 + 1) / 5]                                                                                [Stage 86:>                                                         (0 + 1) / 1]                                                                                [Stage 94:>                                                         (0 + 1) / 1][Stage 96:>                                                         (0 + 4) / 4][Stage 96:==============>                                           (1 + 3) / 4][Stage 96:==========================================================(4 + 0) / 4]                                                                                [Stage 98:>                                                         (0 + 1) / 1][Stage 100:=============================================>           (4 + 1) / 5]                                                                                [Stage 125:>                                                        (0 + 1) / 1]                                                                                [Stage 133:>                                                        (0 + 1) / 1]                                                                                [Stage 139:==========================================>              (3 + 1) / 4]                                                                                [Stage 140:>                                                        (0 + 1) / 1]                                                                                [Stage 146:>                                                        (0 + 1) / 1][Stage 148:=============================================>           (4 + 1) / 5]                                                                                [Stage 152:>                                                        (0 + 1) / 1][Stage 154:=============================================>           (4 + 1) / 5]                                                                                [Stage 158:>                                                        (0 + 1) / 1]                                                                                [Stage 162:>                                                        (0 + 1) / 1][Stage 164:>                                                        (0 + 4) / 4][Stage 164:==============>                                          (1 + 3) / 4]                                                                                [Stage 165:>                                                        (0 + 1) / 1][Stage 167:=============================================>           (4 + 1) / 5]                                                                                [Stage 168:======================>                                 (8 + 4) / 20][Stage 168:=================================>                     (12 + 4) / 20][Stage 168:=========================================>             (15 + 4) / 20][Stage 168:==============================================>        (17 + 3) / 20]                                                                                [DQ][crm] total=50000 valid=48200 quarantined=1800 (3.6% rejected)
++--------+---------------------+----+
+|severity|reason               |rows|
++--------+---------------------+----+
+|reject  |duplicate_customer_id|1800|
+|warn    |corrupted_last_name  |1491|
+|warn    |corrupted_first_name |1464|
++--------+---------------------+----+
 
 [Silver] crm          -> demo.silver.crm | demo.quarantine.crm
 [Silver] customer_device -> demo.silver.customer_device
 [DQ][product] total=500 valid=410 quarantined=90 (18.0% rejected)
-+-----------------+-----+
-|reason           |count|
-+-----------------+-----+
-|nonpositive_price|45   |
-|missing_category |30   |
-|nan_price        |26   |
-+-----------------+-----+
++--------+-----------------+----+
+|severity|reason           |rows|
++--------+-----------------+----+
+|reject  |nonpositive_price|45  |
+|reject  |missing_category |30  |
+|reject  |nan_price        |26  |
++--------+-----------------+----+
 
 [Silver] product      -> demo.silver.product | demo.quarantine.product
+[DQ][orders] total=300000 valid=182946 quarantined=117054 (39.0% rejected)
++--------+------------------------+-----+
+|severity|reason                  |rows |
++--------+------------------------+-----+
+|reject  |bad_order_date          |90000|
+|reject  |nonpositive_order_amount|25798|
+|reject  |nan_order_amount        |12830|
+|warn    |missing_quantity        |27521|
+|warn    |nonpositive_quantity    |18130|
+|warn    |order_before_signup     |14922|
+|warn    |unknown_payment_method  |13016|
++--------+------------------------+-----+
+
+[Silver] orders       -> demo.silver.orders | demo.quarantine.orders
+[DQ][tickets] total=30000 valid=20976 quarantined=9024 (30.1% rejected)
++--------+------------------------+----+
+|severity|reason                  |rows|
++--------+------------------------+----+
+|reject  |bad_created             |7179|
+|reject  |after_as_of_created     |1845|
+|reject  |resolved_before_created |1323|
+|warn    |ticket_before_signup    |1711|
+|warn    |resolved_after_as_of    |1414|
+|warn    |resolution_time_mismatch|1310|
++--------+------------------------+----+
+
+[Silver] tickets      -> demo.silver.tickets | demo.quarantine.tickets
+[DQ][clickstream] total=500000 valid=305114 quarantined=194886 (39.0% rejected)
++--------+----------------------+------+
+|severity|reason                |rows  |
++--------+----------------------+------+
+|reject  |missing_customer_id   |150553|
+|reject  |bad_event_time        |40171 |
+|reject  |after_as_of_event_time|23189 |
++--------+----------------------+------+
+
+[Silver] clickstream  -> demo.silver.clickstream | demo.quarantine.clickstream
+[Silver] DQ summary -> demo.metadata.dq_summary
++---------------------------------------+----------+-----------------+-----------------+
+|relationship                           |child_rows|orphans_vs_bronze|orphans_vs_silver|
++---------------------------------------+----------+-----------------+-----------------+
+|orders.product_id -> product           |182946    |0                |33022            |
+|orders.customer_id -> crm              |182946    |0                |0                |
+|tickets.customer_id -> crm             |20976     |0                |0                |
+|clickstream.customer_id -> crm         |305114    |0                |0                |
+|clickstream.device_id -> crm.device_ids|305114    |305114           |305114           |
++---------------------------------------+----------+-----------------+-----------------+
+
+[Silver] integrity -> demo.metadata.integrity
 [Silver] cleaning complete
 ===== [3/3] Gold metrics =====
 Setting default log level to "WARN".
 To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
-26/09/25 15:21:45 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
-[Stage 0:>                                                          (0 + 1) / 1]                                                                                [Stage 3:>                                                          (0 + 1) / 1][Stage 8:>                                                          (0 + 1) / 1]                                                                                [Stage 26:>                                                         (0 + 1) / 1]                                                                                [Stage 39:>                 (0 + 1) / 1][Stage 40:>                 (0 + 1) / 1]                                                                                [Stage 123:>                (0 + 1) / 1][Stage 126:>                (0 + 1) / 1]                                                                                [Stage 138:>                                                        (0 + 4) / 4]                                                                                [Stage 162:>                (0 + 1) / 1][Stage 163:>                (0 + 1) / 1][Stage 162:>  (0 + 1) / 1][Stage 163:>  (0 + 1) / 1][Stage 166:>  (0 + 1) / 1]                                                                                [Stage 183:>                                                        (0 + 4) / 4]                                                                                == RFM segments == -> demo.gold.customer_rfm
+26/09/26 16:38:48 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+[Stage 0:>                                                          (0 + 1) / 1][Stage 5:>                                                          (0 + 1) / 1]                                                                                [Stage 12:>                 (0 + 1) / 1][Stage 13:>                 (0 + 1) / 1]                                                                                [Stage 23:>                                                         (0 + 1) / 1]                                                                                [Stage 36:>   (0 + 1) / 1][Stage 37:>   (0 + 1) / 1][Stage 38:>   (0 + 1) / 1]                                                                                [Stage 73:>                                                         (0 + 1) / 1]                                                                                [Stage 99:==========================================================(2 + 0) / 2]                                                                                [Stage 110:>                                                        (0 + 2) / 2]                                                                                [Stage 135:>                                                        (0 + 4) / 4]                                                                                [Stage 160:>                (0 + 1) / 1][Stage 161:>                (0 + 1) / 1][Stage 160:>  (0 + 1) / 1][Stage 162:>  (0 + 1) / 1][Stage 163:>  (0 + 2) / 2][Stage 163:>  (0 + 2) / 2][Stage 164:>  (0 + 1) / 1][Stage 165:>  (0 + 1) / 1][Stage 163:>  (0 + 2) / 2][Stage 164:>  (0 + 1) / 1][Stage 166:>  (0 + 1) / 1][Stage 163:=> (1 + 1) / 2][Stage 166:>  (0 + 1) / 1][Stage 167:>  (0 + 1) / 1]                                                                                [Stage 167:>                (0 + 1) / 1][Stage 177:>                (0 + 3) / 4][Stage 177:====>            (1 + 3) / 4][Stage 179:>                (0 + 1) / 2][Stage 177:============>    (3 + 1) / 4][Stage 179:=================(2 + 0) / 2][Stage 177:============>    (3 + 1) / 4][Stage 182:>                (0 + 1) / 1][Stage 182:=========================================================(1 + 0) / 1]                                                                                [Stage 195:>                                                        (0 + 4) / 5][Stage 195:===========>                                             (1 + 4) / 5][Stage 195:==================================>                      (3 + 2) / 5][Stage 195:=============================================>           (4 + 1) / 5]                                                                                [Gold] as_of=2025-12-01  behaviour window=90 days
+== RFM segments == -> demo.gold.customer_rfm
 +-----------+-----+
 |    segment|count|
 +-----------+-----+
 |  Champions|11858|
-|Hibernating|11603|
-|      Loyal| 8730|
-|     Others| 6373|
-|    At Risk| 6373|
+|Hibernating|11604|
+|      Loyal| 8731|
+|     Others| 6372|
+|    At Risk| 6372|
 +-----------+-----+
 
 == Churn risk == -> demo.gold.customer_risk
 +----------+-----+
 |risk_level|count|
 +----------+-----+
-|    Medium|28429|
-|      High|10025|
-|       Low| 4750|
-|  Very Low| 1733|
+|    Medium|28462|
+|      High| 9976|
+|       Low| 4759|
+|  Very Low| 1740|
 +----------+-----+
 
 == Campaign priority == -> demo.gold.campaign_priority
 +--------+-----+
 |priority|count|
 +--------+-----+
-|  MEDIUM|28763|
-|    HIGH|14496|
-|     LOW| 1678|
+|  MEDIUM|28770|
+|    HIGH|14486|
+|     LOW| 1681|
 +--------+-----+
 
 == Category penetration == -> demo.gold.category_penetration
 +-----------+---------+---------------+
 |   category|customers|penetration_pct|
 +-----------+---------+---------------+
+|    unknown|    19008|           42.3|
 |   clothing|    13826|           30.8|
 |    kitchen|    13285|           29.6|
 |     beauty|    12699|           28.3|
@@ -112,29 +137,70 @@ To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLeve
 |       toys|    10324|           23.0|
 +-----------+---------+---------------+
 
-== Behaviour funnel == -> demo.gold.behavior_funnel
+== Behaviour funnel (90 days) == -> demo.gold.behavior_funnel
 +-------+-----------+---------+
 |step_no|       step|customers|
 +-------+-----------+---------+
-|      1|  page_view|    47260|
-|      2|     search|    29643|
-|      3|add_to_cart|    18745|
-|      4|   purchase|    17538|
+|      1|  page_view|    47055|
+|      2|     search|    28644|
+|      3|add_to_cart|    17568|
+|      4|   purchase|     5320|
 +-------+-----------+---------+
 
-== Cart abandoners == -> demo.gold.cart_abandoners  2032 customers
-== Customer 360 == -> demo.gold.customer_360  50000 rows
-+------------------------------------+----------------+---------+----------+------+--------+------------+---------+---------+-----------+----------+----------+--------+
-|customer_id                         |full_name_masked|state    |country   |gender|source  |recency_days|frequency|monetary |segment    |risk_level|risk_score|priority|
-+------------------------------------+----------------+---------+----------+------+--------+------------+---------+---------+-----------+----------+----------+--------+
-|0d244537-8164-4b84-bcf2-0e43766f3221|M*** D**        |Oregon   |Micronesia|M     |referral|19          |2        |21338.33 |Loyal      |Low       |1         |LOW     |
-|14f0e67d-e60e-4989-88cf-5be50d515a69|K*** S**        |Minnesota|Bahrain   |F     |web     |114         |6        |115407.65|Champions  |High      |4         |HIGH    |
-|6ddc1772-f210-4111-87c9-c2ec73776c37|T*** L**        |Kentucky |Uganda    |F     |app     |160         |6        |285255.73|Loyal      |Medium    |3         |HIGH    |
-|1ce2f061-345c-4121-a4ba-32963cf9a15d|B*** G**        |Oregon   |Latvia    |M     |referral|82          |4        |61133.14 |Champions  |Medium    |3         |MEDIUM  |
-|66c5800b-ad5c-4fac-86df-16472d82f02d|K*** C**        |Delaware |Portugal  |M     |referral|578         |2        |43641.59 |Hibernating|High      |4         |MEDIUM  |
-+------------------------------------+----------------+---------+----------+------+--------+------------+---------+---------+-----------+----------+----------+--------+
-only showing top 5 rows
+== Cart abandoners (90 days) == -> demo.gold.cart_abandoners  20652 customers
+== Customer 360 == -> demo.gold.customer_360  48200 rows, 48200 customers
+-RECORD 0--------------------------------------------------
+ customer_id        | 0004e170-d021-4651-997f-bf6a23ac9c3f 
+ full_name_masked   | M*** A**                             
+ state              | Maine                                
+ country            | Swaziland                            
+ gender             | O                                    
+ source             | app                                  
+ tenure_days        | 3637                                 
+ recency_days       | 154                                  
+ frequency          | 2                                    
+ monetary           | 68935.45                             
+ segment            | Others                               
+ bad_orders         | 0                                    
+ favourite_category | home                                 
+ tickets_total      | 1                                    
+ open_tickets       | 0                                    
+ negative_tickets   | 1                                    
+ last_issue_type    | refund                               
+ events_90d         | 6                                    
+ sessions_90d       | 6                                    
+ cart_events_90d    | 1                                    
+ last_event_time    | 2025-11-11 19:34:38.835581           
+ risk_score         | 3                                    
+ risk_level         | Medium                               
+ priority           | MEDIUM                               
+-RECORD 1--------------------------------------------------
+ customer_id        | 000590d2-2e20-466e-98ea-739f64b71480 
+ full_name_masked   | J*** W**                             
+ state              | South Dakota                         
+ country            | Bouvet Island (Bouvetoya)            
+ gender             | F                                    
+ source             | referral                             
+ tenure_days        | 1928                                 
+ recency_days       | 167                                  
+ frequency          | 3                                    
+ monetary           | 68784.09                             
+ segment            | Loyal                                
+ bad_orders         | 0                                    
+ favourite_category | automotive                           
+ tickets_total      | 0                                    
+ open_tickets       | 0                                    
+ negative_tickets   | 0                                    
+ last_issue_type    | NULL                                 
+ events_90d         | 9                                    
+ sessions_90d       | 9                                    
+ cart_events_90d    | 1                                    
+ last_event_time    | 2025-11-30 23:10:03                  
+ risk_score         | 2                                    
+ risk_level         | Medium                               
+ priority           | MEDIUM                               
+only showing top 2 rows
 
 [Gold] metrics complete
 ===== Pipeline complete =====
-=== pipeline end: 2026-09-25T17:22:35+02:00  exit=0 ===
+=== pipeline end: 2026-09-26T18:39:40+02:00  exit=0 ===
