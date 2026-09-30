@@ -3,7 +3,8 @@
 Six dashboards. Each chart names its source table, its fields, how it is computed and
 what counts as done. Everything is SQL aggregation; no ML is involved.
 
-Figures come from Run 3 on 2026-09-26; the full record is in `run_log.md`. Time-based
+Figures come from Run 3 on 2026-09-26, and the RFM, segment and priority figures from
+Run 5 on 2026-10-01; the full record is in `run_log.md`. Time-based
 figures are measured from the reference date 2025-12-01, and behaviour figures cover
 the 90 days before it.
 
@@ -16,9 +17,9 @@ the 90 days before it.
 | Item | Status | Note |
 |---|---|---|
 | Gold and metadata tables | done | listed below |
-| Trino service | **not done** | design document §9 step 4; Superset queries Iceberg through it |
+| Trino service | done | design document §9 step 4; Superset connects with `trino://trino:8080/iceberg` |
 | Superset service | **not done** | design document §9 step 5 |
-| Hide `silver.crm` and `quarantine.crm` in Trino | **not done** | they hold unmasked email, phone and address |
+| Hide the CRM tables in Trino | done | `crm` in `bronze`, `silver` and `quarantine` holds unmasked email, phone and address |
 
 **Available sources**
 
@@ -34,7 +35,7 @@ the 90 days before it.
 | `silver.orders` | 182,946 | status, payment_method, order_date, order_amount, product_id |
 | `silver.product` | 410 | product_id, category, price |
 | `silver.clickstream` | 305,114 | event_type, event_time |
-| `metadata.dq_summary` | per run | run_id, source, severity, reason, rows, source_rows |
+| `metadata.dq_summary` | per run | run_id, source, severity, reason, rows, source_rows, quarantined_rows |
 | `metadata.integrity` | per run | run_id, relationship, child_rows, orphans_vs_bronze, orphans_vs_silver |
 | `metadata.ingestion` | per run | run_id, source, rows, seconds, ingested_at |
 
@@ -71,8 +72,9 @@ phone or address.
 
 Answers: how customer value is distributed.
 
-Recency, frequency and monetary are each scored into quintiles (`R`, `Fs`, `Ms`),
-and the combination places each customer in one of five segments.
+Recency and monetary are scored into quintiles (`R`, `Ms`) and frequency by order
+count capped at 5 (`Fs`); customers with the same value always share a score. The
+combination of `R` and `Fs` places each customer in one of five segments.
 
 | Chart | Type | Source | Fields and computation |
 |---|---|---|---|
@@ -82,7 +84,7 @@ and the combination places each customer in one of five segments.
 | Spend distribution | histogram | `gold.customer_rfm` | bucket `monetary` |
 | High-value share | big number | `gold.customer_rfm` | share of customers with `Ms = 5`, 20% by construction |
 
-Run 3: Champions 11,858, Hibernating 11,604, Loyal 8,731, Others 6,372, At Risk 6,372.
+Run 5: Hibernating 11,615, Loyal 10,188, Champions 8,581, Others 8,167, At Risk 6,386.
 
 **Done when** the five segments sum to 44,937 and `monetary` contains no NaN.
 
@@ -104,8 +106,8 @@ maps to four levels.
 | Priority distribution | bar | `gold.campaign_priority` | group by `priority` |
 | High-priority customers | table | `gold.customer_360` | `priority = 'HIGH'` ordered by `monetary`: masked name, segment, risk level, bad orders, negative tickets, spend |
 
-Run 3: risk Medium 28,462, High 9,976, Low 4,759, Very Low 1,740; priority
-MEDIUM 28,770, HIGH 14,486, LOW 1,681.
+Run 5: risk Medium 28,462, High 9,976, Low 4,759, Very Low 1,740; priority
+MEDIUM 28,769, HIGH 14,487, LOW 1,681.
 
 **Done when** the table shows `full_name_masked` and no real names.
 
@@ -167,7 +169,7 @@ Filter every chart on the latest `run_id`.
 
 | Chart | Type | Source | Fields and computation |
 |---|---|---|---|
-| Rejection rate per source | bar | `metadata.dq_summary` | sum of `rows` where `severity = 'reject'` over `source_rows` |
+| Rejection rate per source | bar | `metadata.dq_summary` | `max(quarantined_rows) / max(source_rows)` per `source`. Do not sum the reject `rows`: a row can fail several rules, so they add up to more than the rows quarantined |
 | Rejection reasons | stacked bar | `metadata.dq_summary` | `severity = 'reject'`, group by `source`, stack `reason` |
 | Warnings | stacked bar | `metadata.dq_summary` | `severity = 'warn'`, group by `source`, stack `reason` |
 | Orphans before and after cleaning | grouped bar | `metadata.integrity` | `orphans_vs_bronze` beside `orphans_vs_silver` per `relationship` |
@@ -181,7 +183,7 @@ The orphan chart is the one to lead with: every relationship has 0 orphans again
 Bronze, but orders → product has 33,022 against Silver. The source data is intact;
 the orphans are what our own quarantine of 90 products does to the orders.
 
-**Done when** the rejected rows per source match the quarantine table row counts.
+**Done when** the rejection rates match the ones above.
 
 ---
 
@@ -204,7 +206,7 @@ report.
 
 | Order | Work | Depends on | Owner |
 |---|---|---|---|
-| 1 | Add Trino, hide the CRM tables, confirm it reads Gold and metadata | Gold tables | `[name]` |
+| 1 | Add Trino, hide the CRM tables, confirm it reads Gold and metadata (done) | Gold tables | `[name]` |
 | 2 | Add Superset, connect to Trino, create datasets | Trino | `[name]` |
 | 3 | Dashboards 2 and 3 | datasets | `[name]` |
 | 4 | Dashboards 1 and 4 | datasets | `[name]` |

@@ -61,15 +61,26 @@ export LOCAL_DATA=/home/iceberg/data
 Writes to `demo.{bronze,silver,quarantine,gold,metadata}.*`. Namespaces are created
 by `lakehouse_io.ensure_namespaces()`.
 
-Both modes run the same code; row counts and DQ percentages must match.
+Both modes run the same code. A table-by-table comparison of the two, covering all 23
+tables and the run metadata, found them identical (`docs/run_log.md`, Runs 4 and 5).
 
 Every time-based metric is measured from `AS_OF_DATE` (default 2025-12-01, the last
 order date), and records dated after it are rejected. Behaviour metrics cover the
 `BEHAVIOUR_WINDOW_DAYS` (default 90) before it. `run_pipeline.sh` tags each run with a
 fresh `RUN_ID`.
 
-The compose file currently starts Spark, the Iceberg REST catalog and MinIO. Trino
-and Superset are added in a later step; see [infra/README.md](infra/README.md).
+The compose file starts Spark, the Iceberg REST catalog, MinIO and Trino. Superset is
+added in a later step; see [infra/README.md](infra/README.md).
+
+### Querying through Trino
+
+```bash
+cd infra && docker compose exec trino trino
+trino> SELECT segment, count(*) FROM iceberg.gold.customer_360 GROUP BY 1;
+```
+
+Trino is read-only and hides the `crm` table in Bronze, Silver and quarantine, which
+holds unmasked personal data.
 
 ### Individual layers
 
@@ -86,7 +97,7 @@ python3 src/gold_metrics.py     # silver.* -> gold.*
 | Table | Content | Dashboard |
 |---|---|---|
 | `customer_360` | one row per customer: profile, purchases, support, behaviour in the last 90 days | all |
-| `customer_rfm` | RFM quintiles and segment | 2 |
+| `customer_rfm` | RFM scores 1 to 5 and segment; equal values share a score | 2 |
 | `customer_risk` | churn risk score and level | 3 |
 | `campaign_priority` | retention priority from value x risk | 3 |
 | `category_penetration` | buyers per category; orders whose product was quarantined count as `unknown` | 4 |
@@ -114,8 +125,9 @@ rules = [
 warnings = [rule_positive("quantity")]
 ```
 
-Counts per source, severity and reason go to `metadata.dq_summary`; orphans per
-relationship, before and after cleaning, go to `metadata.integrity`.
+Counts per source, severity and reason go to `metadata.dq_summary`, with the rows and
+quarantined rows of each source; orphans per relationship, before and after cleaning,
+go to `metadata.integrity`.
 
 Measured on the current dataset, 36.7% of the 880,500 source rows are quarantined:
 orders 39.0% (90,000 unparseable dates, 25,798 non-positive amounts, 12,830 NaN
@@ -139,7 +151,8 @@ docs/
   dashboard_blueprint.md  chart-by-chart dashboard specification
   run_log.md           plan and results of every pipeline run
 infra/
-  docker-compose.yml   Spark, Iceberg REST catalog, MinIO
+  docker-compose.yml   Spark, Iceberg REST catalog, MinIO, Trino
+  trino/               Trino catalog and access rules
   LICENSE.upstream     upstream Apache-2.0 licence
   README.md            modifications, ports, startup
 data/                  source CSVs, not version-controlled

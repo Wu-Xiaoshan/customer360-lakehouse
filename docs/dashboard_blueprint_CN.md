@@ -3,7 +3,7 @@
 六个 dashboard 的搭建说明。每张图注明数据来源表、字段、算法和验收标准。
 全部为 SQL 聚合，不涉及 ML。
 
-数字取自 2026-09-26 的 Run 3，完整记录见 `run_log.md`。与时间有关的数字都从参考日期
+数字取自 2026-09-26 的 Run 3，其中 RFM、分群和优先级的数字取自 2026-10-01 的 Run 5，完整记录见 `run_log.md`。与时间有关的数字都从参考日期
 2025-12-01 算起，行为数字覆盖它之前的 90 天。
 
 ---
@@ -15,9 +15,9 @@
 | 条件 | 状态 | 说明 |
 |---|---|---|
 | Gold 表和元数据表 | 完成 | 见下方数据源清单 |
-| Trino 服务 | **未完成** | 设计文档 §9 步骤 4，Superset 通过它查 Iceberg |
+| Trino 服务 | 完成 | 设计文档 §9 步骤 4；Superset 的连接串为 `trino://trino:8080/iceberg` |
 | Superset 服务 | **未完成** | 设计文档 §9 步骤 5 |
-| 在 Trino 里隐藏 `silver.crm` 和 `quarantine.crm` | **未完成** | 这两张表存有未脱敏的邮箱、电话和地址 |
+| 在 Trino 里隐藏 CRM 表 | 完成 | `bronze`、`silver`、`quarantine` 三层的 `crm` 存有未脱敏的邮箱、电话和地址 |
 
 **可用数据源**
 
@@ -33,7 +33,7 @@
 | `silver.orders` | 182,946 | status, payment_method, order_date, order_amount, product_id |
 | `silver.product` | 410 | product_id, category, price |
 | `silver.clickstream` | 305,114 | event_type, event_time |
-| `metadata.dq_summary` | 每次运行一批 | run_id, source, severity, reason, rows, source_rows |
+| `metadata.dq_summary` | 每次运行一批 | run_id, source, severity, reason, rows, source_rows, quarantined_rows |
 | `metadata.integrity` | 每次运行一批 | run_id, relationship, child_rows, orphans_vs_bronze, orphans_vs_silver |
 | `metadata.ingestion` | 每次运行一批 | run_id, source, rows, seconds, ingested_at |
 
@@ -68,7 +68,7 @@ clickstream 里的 `session_id` 和 `device_id` 都不是可用的关联键（�
 
 回答「客户价值怎么分层」。
 
-R、F、M 三个维度各按五分位打 1 到 5 分（`R`、`Fs`、`Ms` 列），再按组合规则划入五个分群。
+recency 和 monetary 按五分位打 1 到 5 分（`R`、`Ms` 列），frequency 直接按购买次数打分、封顶 5（`Fs` 列）；取值相同的客户一定同分。再按 `R` 和 `Fs` 的组合划入五个分群。
 
 | 图表 | 类型 | 数据源 | 字段与算法 |
 |---|---|---|---|
@@ -78,7 +78,7 @@ R、F、M 三个维度各按五分位打 1 到 5 分（`R`、`Fs`、`Ms` 列）�
 | 消费金额分布 | 直方图 | `gold.customer_rfm` | `monetary` 分箱 |
 | 高价值客户占比 | 数字卡片 | `gold.customer_rfm` | `Ms = 5` 的客户占比，按定义为 20% |
 
-Run 3 的分群人数：Champions 11,858、Hibernating 11,604、Loyal 8,731、Others 6,372、At Risk 6,372。
+Run 5 的分群人数：Hibernating 11,615、Loyal 10,188、Champions 8,581、Others 8,167、At Risk 6,386。
 
 **验收**：五个分群人数相加等于 44,937；`monetary` 列没有 NaN。
 
@@ -98,7 +98,7 @@ Run 3 的分群人数：Champions 11,858、Hibernating 11,604、Loyal 8,731、Ot
 | 营销优先级分布 | 柱状图 | `gold.campaign_priority` | 按 `priority` 分组计数 |
 | 高优先级客户名单 | 表格 | `gold.customer_360` | `priority = 'HIGH'`，按 `monetary` 降序：脱敏姓名、分群、风险等级、问题订单数、负面工单数、消费金额 |
 
-Run 3：风险等级 Medium 28,462、High 9,976、Low 4,759、Very Low 1,740；优先级 MEDIUM 28,770、HIGH 14,486、LOW 1,681。
+Run 5：风险等级 Medium 28,462、High 9,976、Low 4,759、Very Low 1,740；优先级 MEDIUM 28,769、HIGH 14,487、LOW 1,681。
 
 **验收**：名单表格只出现 `full_name_masked`，不出现任何真实姓名。
 
@@ -152,7 +152,7 @@ Run 3 漏斗：page_view 47,055 → search 28,644 → add_to_cart 17,568 → pur
 
 | 图表 | 类型 | 数据源 | 字段与算法 |
 |---|---|---|---|
-| 各源隔离率 | 柱状图 | `metadata.dq_summary` | `severity = 'reject'` 的 `rows` 之和除以 `source_rows` |
+| 各源隔离率 | 柱状图 | `metadata.dq_summary` | 按 `source` 取 `max(quarantined_rows) / max(source_rows)`。不要把拒绝的 `rows` 相加：一行可以同时违反多条规则，相加会大于实际隔离的行数 |
 | 拒绝原因分布 | 堆叠柱状图 | `metadata.dq_summary` | `severity = 'reject'`，按 `source` 分组，`reason` 堆叠 |
 | 警告分布 | 堆叠柱状图 | `metadata.dq_summary` | `severity = 'warn'`，按 `source` 分组，`reason` 堆叠 |
 | 清洗前后的孤儿数 | 分组柱状图 | `metadata.integrity` | 每条 `relationship` 的 `orphans_vs_bronze` 与 `orphans_vs_silver` 并列 |
@@ -162,7 +162,7 @@ Run 3 隔离率：orders 39.0%、clickstream 39.0%、tickets 30.1%、product 18.
 
 孤儿数那张图应该放在最前面：每条关联关系相对 Bronze 都是 0 孤儿，但 orders → product 相对 Silver 有 33,022 条。源数据是完整的，这些孤儿是我们隔离 90 个商品之后对订单造成的影响。
 
-**验收**：每个源被拒绝的行数与对应隔离表的行数一致。
+**验收**：各源隔离率与上面列出的数字一致。
 
 ---
 
@@ -180,7 +180,7 @@ Run 3 隔离率：orders 39.0%、clickstream 39.0%、tickets 30.1%、product 18.
 
 | 顺序 | 内容 | 依赖 | 负责人 |
 |---|---|---|---|
-| 1 | 加 Trino，隐藏 CRM 两张表，验证能查到 Gold 和元数据表 | Gold 表已生成 | `[姓名]` |
+| 1 | 加 Trino，隐藏 CRM 表，验证能查到 Gold 和元数据表（已完成） | Gold 表已生成 | `[姓名]` |
 | 2 | 加 Superset，连上 Trino，建 dataset | Trino | `[姓名]` |
 | 3 | Dashboard 2、3 | dataset | `[姓名]` |
 | 4 | Dashboard 1、4 | dataset | `[姓名]` |

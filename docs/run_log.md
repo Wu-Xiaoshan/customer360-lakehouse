@@ -256,3 +256,182 @@ product 0.70 s.
 
 **Next.** Design document §9 step 3, the local-mode cross-check, then Trino and
 Superset.
+
+---
+
+## Run 4 — 2026-09-30 — local versus Iceberg cross-check
+
+**Goal.** Design document §9 step 3: run the same code once against Iceberg and once
+against local Parquet and require identical results, which shows that the storage
+abstraction in `lakehouse_io.py` does not change any outcome.
+
+**Found before running.** The RFM quintiles depended on row order. `frequency` has 15
+distinct values across 44,937 customers, so tie groups straddle every quintile
+boundary, and `NTILE` placed tied customers on either side according to the order in
+which rows arrived. Rebuilding `customer_rfm` from the same Silver rows after
+`repartition(16)` changed `Fs` for 3,028 customers, `R` for 30 and the segment for 16.
+This also explains the one-customer segment differences between Run 2 and Run 3. A
+cross-check would have reported these as mismatches although the storage layer was
+not involved.
+
+**Changes.**
+
+| File | Change |
+|---|---|
+| `gold_metrics.py` | `customer_id` as the second sort key in the three `NTILE` windows; `last_issue_type` taken from `max(struct(created, ticket_id, issue_type))` instead of `max_by`, which is also arbitrary on ties |
+
+After the change the repartitioned rebuild differs for 0 customers.
+
+**Plan.** Run the pipeline in iceberg mode, then in local mode with
+`LOCAL_OUT=/tmp/c360_local` inside the Spark container. Compare all 23 tables:
+equal row counts; `exceptAll` empty in both directions on every non-floating column,
+ignoring the audit columns `_ingest_ts` and `_ingest_run_id`; floating columns in Gold
+within 0.01 by key, since distributed sums add in no fixed order. Compare the latest
+`metadata.dq_summary` and `metadata.integrity` batches without `run_id`, and
+`metadata.ingestion` on row counts only.
+
+**Result.** All 26 comparisons identical: 23 tables and 3 metadata batches, with equal
+row counts and empty `exceptAll` in both directions. The largest floating-point
+difference in `monetary` is 0.0. The storage abstraction changes no outcome.
+
+| Run | Mode | Start | Duration |
+|---|---|---|---|
+| 4a `run_20260930T214409Z` | iceberg | 23:44:09 | 4 min 32 s |
+| 4b | local Parquet in `/tmp/c360_local` | 23:48:41 | 10 min 15 s |
+
+Silver, quarantine, integrity, risk and priority are the same as Run 3. RFM segments
+moved:
+
+| Segment | Run 3 | Run 4 |
+|---|---|---|
+| Champions | 11,858 | 10,017 |
+| Hibernating | 11,604 | 10,690 |
+| Loyal | 8,731 | 9,658 |
+| Others | 6,372 | 7,286 |
+| At Risk | 6,372 | 7,286 |
+
+**Finding.** Reproducible is not the same as fair. With `customer_id` breaking ties,
+the scores repeat on every run, but customers with identical behaviour still receive
+different scores:
+
+| Frequency | Customers | Fs scores given |
+|---|---|---|
+| 2 orders | 11,451 | 1, 2 and 3 |
+| 3 orders | 10,428 | 3 and 4 |
+| 4 orders | 7,264 | 4 and 5 |
+
+29,143 customers, 65% of buyers, sit in a frequency group that `NTILE(5)` splits
+across quintiles; for recency the same happens to 414 customers. The cause is the
+method: `NTILE` cuts the customer list into five equal counts, and `frequency` has 15
+values concentrated between 1 and 4, so equal counts cannot fall on value boundaries.
+Which tie-break is used then decides segment membership for about 1,800 customers,
+which is the Run 3 to Run 4 shift above.
+
+Frequency distribution over the 44,937 buyers: 1 order 18.5%, 2 orders 25.5%,
+3 orders 23.2%, 4 orders 16.2%, 5 or more 16.6%.
+
+**Next.** Replace `NTILE` with tie-aware scoring, then design document §9 step 4.
+
+---
+
+## Run 5 — 2026-10-01 — tie-aware RFM scoring
+
+**Goal.** Give customers with identical behaviour identical RFM scores.
+
+**Change.** In `build_rfm`, `Fs` is the order count capped at 5, so 1, 2, 3, 4 and 5+
+orders score 1 to 5 and hold 18.5, 25.5, 23.2, 16.2 and 16.6% of buyers. `R` and `Ms`
+are quintiles from `percent_rank`, which gives tied values the same rank and therefore
+the same score. No tie-break key is needed.
+
+**Plan.** Silver is unchanged, so only Gold is rerun, once in iceberg mode and once in
+local mode on the Run 4 Silver in `/tmp/c360_local`. Check that no recency, frequency
+or monetary value maps to more than one score, then repeat the 26-way cross-check.
+
+**Result.** Gold rerun in both modes (00:10:11 to 00:12:01). No recency, frequency or
+monetary value maps to more than one score, and the 26-way cross-check is still
+identical, 26 of 26.
+
+Score distribution over the 44,937 buyers:
+
+| Score | R | Fs | Ms |
+|---|---|---|---|
+| 1 | 20.1% | 18.5% | 20.0% |
+| 2 | 20.0% | 25.5% | 20.0% |
+| 3 | 20.1% | 23.2% | 20.0% |
+| 4 | 19.9% | 16.2% | 20.0% |
+| 5 | 20.0% | 16.6% | 20.0% |
+
+| Segment | Run 4 | Run 5 |
+|---|---|---|
+| Hibernating | 10,690 | 11,615 |
+| Loyal | 9,658 | 10,188 |
+| Champions | 10,017 | 8,581 |
+| Others | 7,286 | 8,167 |
+| At Risk | 7,286 | 6,386 |
+
+Others and At Risk are no longer equal. They were equal in Runs 2, 3 and 4 only
+because `NTILE` forced equal counts per quintile.
+
+Campaign priority moved by one customer, MEDIUM 28,769 and HIGH 14,487, from a
+monetary tie on a quintile boundary. Risk levels are unchanged: Medium 28,462,
+High 9,976, Low 4,759, Very Low 1,740.
+
+**Next.** Design document §9 step 4, Trino.
+
+---
+
+## Run 6 — 2026-10-01 — quarantined rows per source
+
+**Goal.** Record how many rows each source sends to quarantine, so that Dashboard 6
+can show a rejection rate without reading the quarantine tables, which Trino hides for
+CRM.
+
+**Found in step 4.** Read through Trino, the reject counts in `metadata.dq_summary`
+add up to more than the rows actually quarantined, because a row can fail several
+rules:
+
+| Source | Sum of reject counts | Rows in `quarantine.<source>` |
+|---|---|---|
+| clickstream | 213,913 | 194,886 |
+| orders | 128,628 | 117,054 |
+| tickets | 10,347 | 9,024 |
+| product | 101 | 90 |
+| crm | 1,800 | 1,800 |
+
+The rejection rate in the dashboard blueprint, the sum of reject `rows` over
+`source_rows`, would have shown orders at 42.9% instead of 39.0%.
+
+**Change.** `dq/framework.py`: every `dq_summary` row carries `quarantined_rows` next
+to `source_rows`. The rejection rate of a source is `quarantined_rows / source_rows`.
+
+**Plan.** Add the column to the existing `demo.metadata.dq_summary` with
+`ALTER TABLE ... ADD COLUMN`, so earlier batches keep their rows with a null value. Run
+the pipeline in iceberg mode, then in local mode into an empty `/tmp/c360_local`, and
+repeat the 26-way cross-check. Assert that `quarantined_rows` equals the row count of
+`quarantine.<source>` for all five sources, and that the DQ totals, segments, risk
+levels and priorities are the same as in Run 5. Then read the rates through Trino.
+
+**Result.** Succeeded in both modes. `quarantined_rows` equals the quarantine table
+row count for all five sources, and the 26-way cross-check is identical, 26 of 26,
+including the new column.
+
+| Run | Mode | Start | Duration |
+|---|---|---|---|
+| 6a `run_20260930T224132Z` | iceberg | 00:41:31 | 4 min 57 s |
+| 6b | local Parquet in `/tmp/c360_local` | 00:46:28 | 4 min 17 s |
+
+| Source | `quarantined_rows` | Sum of reject counts | Source rows | Rejection rate |
+|---|---|---|---|---|
+| clickstream | 194,886 | 213,913 | 500,000 | 39.0% |
+| orders | 117,054 | 128,628 | 300,000 | 39.0% |
+| tickets | 9,024 | 10,347 | 30,000 | 30.1% |
+| product | 90 | 101 | 500 | 18.0% |
+| crm | 1,800 | 1,800 | 50,000 | 3.6% |
+
+The rates read through Trino are the same. The four earlier batches in
+`metadata.dq_summary` keep their 22 rows each, with `quarantined_rows` null.
+
+Everything else equals Run 5: the DQ totals, `customer_360` with 48,200 rows for
+48,200 customers, the segments, risk levels, priorities and the `integrity` batch.
+
+**Next.** Design document §9 step 5, Superset.

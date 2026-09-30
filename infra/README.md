@@ -15,6 +15,8 @@ Also recorded in the header comment of `docker-compose.yml`, as Apache-2.0 requi
 | added `..` and `../data:ro` mounts | project code and source CSVs inside the container |
 | `minio/minio`, `minio/mc` → pinned `quay.io/minio/*` | both repositories were removed from Docker Hub |
 | `tabulario/spark-iceberg` → `tabulario/spark-iceberg:3.5.5_1.8.1` | Spark 3.5.5 / Iceberg 1.8.1; `requirements.txt` pins the same PySpark version |
+| removed `mc rm -r --force minio/warehouse`; named volumes `minio_data` and `rest_catalog`; `CATALOG_URI` on a SQLite file | upstream empties the warehouse and keeps the catalog in memory, so every table was lost on restart |
+| added `trino` (`trinodb/trino:483`) and `./trino` | SQL layer for Superset; see [Trino](#trino) |
 
 Mount paths are relative to `infra/`:
 
@@ -33,7 +35,7 @@ Each service added in a later step needs a matching line in that header comment.
 cd infra
 docker compose config      # four mounts expected on spark-iceberg
 docker compose up -d
-docker compose ps          # four services running
+docker compose ps          # five services running
 ```
 
 Running the pipeline inside the container:
@@ -50,7 +52,7 @@ not been copied. See [data/README.md](../data/README.md).
 
 ## Services and ports
 
-Four services on the `iceberg_net` network.
+Five services on the `iceberg_net` network.
 
 | Service | Port | Purpose |
 |---|---|---|
@@ -60,25 +62,54 @@ Four services on the `iceberg_net` network.
 | rest | 8181 | Iceberg REST catalog |
 | minio | 9000 | S3 API |
 | minio | 9001 | MinIO console |
+| mc | none | creates the `warehouse` bucket |
+| trino | 8085 (8080 in the container) | Trino, SQL over the Iceberg tables |
 
 Check for conflicts before starting, particularly on 8080:
 
 ```bash
-ss -tlnp | grep -E '8888|8080|8181|9000|9001|10000|10001'
+ss -tlnp | grep -E '8888|8080|8085|8181|9000|9001|10000|10001'
 ```
 
 Upstream ships the demo credentials `admin` / `password` for the MinIO root user and
 the AWS access keys. Reach the consoles over an SSH tunnel rather than exposing the
 ports on a shared host.
 
+## Trino
+
+`trino/catalog/iceberg.properties` defines one catalog, `iceberg`, on the REST catalog
+and MinIO. The schemas are the same as in Spark's `demo` catalog: `bronze`, `silver`,
+`quarantine`, `gold`, `metadata`.
+
+`trino/rules.json` applies file-based access control:
+
+- every catalog is read-only;
+- `crm` in `bronze`, `silver` and `quarantine` has no privileges, so it is absent
+  from `SHOW TABLES` and `information_schema` and any query on it is denied. These
+  tables hold unmasked email, phone and address; `gold.customer_360` has the masked
+  columns;
+- every other table allows `SELECT`.
+
+```bash
+docker compose exec trino trino
+trino> SELECT segment, count(*) FROM iceberg.gold.customer_360 GROUP BY 1;
+trino> SELECT snapshot_id, committed_at FROM iceberg.gold."customer_rfm$snapshots";
+trino> SELECT count(*) FROM iceberg.gold.customer_rfm FOR VERSION AS OF <snapshot_id>;
+```
+
+Superset connects with `trino://trino:8080/iceberg` from inside `iceberg_net`, or
+`trino://localhost:8085/iceberg` from the host.
+
 ## Planned additions
 
 | Step | Service | Purpose |
 |---|---|---|
-| 5 | Trino | SQL query layer over the Iceberg REST catalog |
-| 6 | Superset | dashboards on the Gold tables, via Trino |
+| 5 | Superset | dashboards on the Gold tables, via Trino |
 
 ## Notes
 
 `./warehouse` resolves to `infra/warehouse`, a runtime artefact covered by
 `warehouse/` in `.gitignore`.
+
+Spark's Iceberg metadata tables, such as `demo.gold.customer_rfm.snapshots`, are
+rejected by the REST catalog with HTTP 400. Query snapshots through Trino as above.

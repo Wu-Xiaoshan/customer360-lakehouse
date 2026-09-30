@@ -71,11 +71,15 @@ def dedup(df: DataFrame, key: str, order_by: list):
 
 
 SUMMARY_SCHEMA = ("run_id string, source string, severity string, reason string, "
-                  "rows bigint, source_rows bigint")
+                  "rows bigint, source_rows bigint, quarantined_rows bigint")
 
 
 def dq_summary(spark, run_id: str, source: str, valid: DataFrame, quar: DataFrame) -> DataFrame:
-    """Print reject and warning counts and return them as rows for metadata.dq_summary."""
+    """Print reject and warning counts and return them as rows for metadata.dq_summary.
+
+    A row can fail several rules, so the reject counts of a source can add up to more
+    than its `quarantined_rows`.
+    """
     nv, nq = valid.count(), quar.count()
     total = nv + nq
     if total == 0:
@@ -85,7 +89,7 @@ def dq_summary(spark, run_id: str, source: str, valid: DataFrame, quar: DataFram
           f"({round(nq / total * 100, 1)}% rejected)")
 
     def counts(df, col, severity):
-        return [(run_id, source, severity, r["reason"], r["count"], total)
+        return [(run_id, source, severity, r["reason"], r["count"], total, nq)
                 for r in df.select(F.explode(col).alias("reason")).groupBy("reason").count().collect()]
 
     rows = counts(quar, "_err", "reject") + counts(valid, "_warn", "warn")

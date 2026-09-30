@@ -1,0 +1,9 @@
+{
+  "catalogs": [
+    {"catalog": "iceberg|system", "allow": "read-only"}
+  ],
+  "tables": [
+    {"catalog": "iceberg", "schema": "bronze|silver|quarantine", "table": "crm", "privileges": []},
+    {"privileges": ["SELECT"]}
+  ]
+}

@@ -22,15 +22,21 @@ def _as_of():
     return F.to_date(F.lit(AS_OF_DATE))
 
 
+def _quintile(order):
+    """Score 1 to 5 from percent_rank; tied values always share a score."""
+    return F.least(F.lit(5), F.floor(F.percent_rank().over(Window.orderBy(order)) * 5) + 1).cast("int")
+
+
 def build_rfm(succ):
     rfm = succ.groupBy("customer_id").agg(
         F.datediff(_as_of(), F.max("order_date")).alias("recency_days"),
         F.count("*").alias("frequency"),
         F.round(F.sum("order_amount"), 2).alias("monetary"))
+    # R and Ms are quintiles; Fs is the order count capped at 5.
     rfm = (rfm
-        .withColumn("R", F.ntile(5).over(Window.orderBy(F.col("recency_days").desc())))
-        .withColumn("Fs", F.ntile(5).over(Window.orderBy(F.col("frequency").asc())))
-        .withColumn("Ms", F.ntile(5).over(Window.orderBy(F.col("monetary").asc()))))
+        .withColumn("R", _quintile(F.col("recency_days").desc()))
+        .withColumn("Fs", F.least(F.col("frequency"), F.lit(5)).cast("int"))
+        .withColumn("Ms", _quintile(F.col("monetary").asc())))
     rfm = rfm.withColumn("segment",
         F.when((F.col("R")>=4)&(F.col("Fs")>=4),"Champions")
          .when((F.col("R")>=3)&(F.col("Fs")>=3),"Loyal")
@@ -135,7 +141,7 @@ def build_customer_360(crm, rfm, risk, priority, orders, succ, product, tickets,
         F.sum(F.when(F.col("resolved").isNull() | (F.to_date("resolved") > as_of), 1)
                .otherwise(0)).alias("open_tickets"),
         F.sum(F.when(F.col("sentiment") == "negative", 1).otherwise(0)).alias("negative_tickets"),
-        F.max_by("issue_type", "created").alias("last_issue_type"))
+        F.max(F.struct("created", "ticket_id", "issue_type"))["issue_type"].alias("last_issue_type"))
 
     behaviour = click_w.groupBy("customer_id").agg(
         F.count("*").alias(f"events_{W}d"),

@@ -1,7 +1,7 @@
 # Design Document — Customer 360 Lakehouse Platform
 
 > Final Project · ID2221 Data-Intensive Computing
-> **Status: implementation in progress.** The pipeline runs end to end on Iceberg and produces a Customer 360 table with one row per customer. §9 step 3 is next. The plan and the division of work are in §9, the numbers from each run are in `run_log.md`, and the open items are in §10.
+> **Status: implementation in progress.** The pipeline runs end to end on Iceberg and produces a Customer 360 table with one row per customer, with identical results on local Parquet, and Trino serves it read-only. §9 step 5 (Superset) is next. The plan and the division of work are in §9, the numbers from each run are in `run_log.md`, and the open items are in §10.
 
 ---
 
@@ -150,7 +150,7 @@ Orders and tickets before signup are warnings because a guest order can precede 
 
 **Framework.** A rule is a `(name, condition)` pair; each source declares its rule and warning lists. `dedup(df, key, order_by)` implements the entity level with a window function. Cross-source checks join the needed column from the other source first, so they remain ordinary single-table rules.
 
-**Outputs.** `silver.<source>` keeps valid rows plus their `_warn` array. `metadata.dq_summary` holds one row per run, source, severity and reason. `metadata.integrity` holds, per relationship, the orphan count against the Bronze parent and against the Silver parent; the difference between the two is the orphaning caused by our own quarantine.
+**Outputs.** `silver.<source>` keeps valid rows plus their `_warn` array. `metadata.dq_summary` holds one row per run, source, severity and reason, together with the source's row count and quarantined row count. `metadata.integrity` holds, per relationship, the orphan count against the Bronze parent and against the Silver parent; the difference between the two is the orphaning caused by our own quarantine.
 
 ### 4.3 Gold — integrate into Customer 360
 
@@ -170,7 +170,7 @@ Email, phone and address never reach this table. Customers without orders are ke
 
 **Analytical tables.**
 
-- **RFM segmentation**: recency, frequency and monetary per customer over successful orders, each scored into quintiles with `NTILE(5)` window functions, and the combination mapped to five segments.
+- **RFM segmentation**: recency, frequency and monetary per customer over successful orders, each scored 1 to 5, with the combination of R and F mapped to five segments. Customers with the same value always get the same score. Recency and monetary are quintiles from `percent_rank`, which gives tied values one rank. Frequency is the order count capped at 5: it takes only 15 values, mostly 1 to 4, so any split into five equal counts would give customers with the same number of orders different scores, while the counts 1, 2, 3, 4 and 5+ already hold 18.5, 25.5, 23.2, 16.2 and 16.6% of buyers.
 - **Churn risk**: 0 to 2 points each for time since the last order, refunded or failed orders, and negative tickets; the sum maps to four levels.
 - **Campaign priority**: monetary quintile combined with the risk score.
 - **Category penetration**: distinct buyers per category, with orders whose product was quarantined counted under `unknown`.
@@ -221,7 +221,7 @@ Email, phone and address never reach this table. Customers without orders are ke
 
 To fit the project scope and the target runtime, the platform reads files from a read-only landing directory rather than live source databases, and uses a shell script (`run_pipeline.sh`) rather than a dedicated orchestrator. Small dimension tables (product_catalog) are not partitioned; large fact tables are partitioned by date.
 
-Resulting container footprint: MinIO + `mc` (bucket setup) + Spark/Jupyter + REST catalog, plus Trino and Superset once §9 steps 4 and 5 are done.
+Resulting container footprint: MinIO + `mc` (bucket setup) + Spark/Jupyter + REST catalog + Trino, plus Superset once §9 step 5 is done.
 
 ### 5.3 References
 
@@ -233,7 +233,7 @@ Resulting container footprint: MinIO + `mc` (bucket setup) + Spark/Jupyter + RES
 
 - **Bucket:** `s3://warehouse/` in MinIO, the default of the Iceberg quickstart.
 - **Table naming:** catalog `demo`, one namespace per layer: `demo.bronze.orders`, `demo.silver.orders`, `demo.quarantine.orders`, `demo.gold.customer_360`. Namespaces are created by `lakehouse_io.ensure_namespaces()`.
-- **Run metadata** lives in `demo.metadata`, appended once per run and keyed by `run_id`: `ingestion` (rows and seconds per source), `dq_summary` (rows per source, severity and reason), `integrity` (orphans per relationship).
+- **Run metadata** lives in `demo.metadata`, appended once per run and keyed by `run_id`: `ingestion` (rows and seconds per source), `dq_summary` (rows per source, severity and reason, next to the source's total and quarantined rows), `integrity` (orphans per relationship).
 - **Partitioning:** partition large fact/behavioral tables by date (e.g., `order_date` month); do **not** partition small dimension/lookup tables (products, customers) — low cardinality, would create small-file overhead.
 - **Common data model:** ISO-8601 UTC timestamps; snake_case column names; explicit types; `_err` and `_warn` arrays for rule outcomes.
 
@@ -253,7 +253,8 @@ customer360-lakehouse/          # lives at ~/customer360-lakehouse inside WSL
 │   ├── dashboard_blueprint.md# dashboard build specification (and a Chinese copy)
 │   └── run_log.md            # plan and results of every pipeline run
 ├── infra/
-│   ├── docker-compose.yml    # MinIO + mc + Spark + REST catalog (+ Trino, Superset to come)
+│   ├── docker-compose.yml    # MinIO + mc + Spark + REST catalog + Trino (Superset to come)
+│   ├── trino/                # Trino catalog and access rules
 │   ├── LICENSE.upstream      # Apache-2.0 licence of the quickstart we extend
 │   └── README.md             # modifications to upstream, ports, startup
 ├── src/
@@ -290,7 +291,7 @@ Each step is independently verifiable, so that a failure is traceable to a singl
 
 ### Step 1 — Environment · DONE
 
-WSL2 (Ubuntu 24.04) on a laptop, Docker Engine 29.8.1, Compose v5.5.1. `cd infra && docker compose up -d` starts four services: `spark-iceberg`, `rest`, `minio`, `mc`. Tables persist across restarts (§2).
+WSL2 (Ubuntu 24.04) on a laptop, Docker Engine 29.8.1, Compose v5.5.1. `cd infra && docker compose up -d` starts `spark-iceberg`, `rest`, `minio`, `mc` and, from step 4, `trino`. Tables persist across restarts (§2).
 
 ### Step 2 — Run the pipeline on Iceberg · DONE
 
@@ -320,13 +321,21 @@ Run 3 took 4 min 18 s. 880,500 source rows became 557,646 valid rows and 322,854
 
 Verified by thirteen checks, all passing: `customer_360` rows equal distinct ids equal Silver CRM rows (48,200); the golden record keeps `Parrish`; nothing in Silver is dated after the reference date; Silver plus quarantine equals Bronze for every source; the funnel decreases; category penetration has an `unknown` bucket; 99.8% of customers have behaviour in the window. Full numbers are in `run_log.md`.
 
-### Step 3 — Cross-check against the local baseline · NEXT
+### Step 3 — Cross-check against the local baseline · DONE
 
-Run the same code with `LAKEHOUSE_MODE=local` and `LOCAL_OUT=./warehouse`, which writes Parquet instead of Iceberg through the same code path. Done when the row counts and DQ rates match Step 2b. A mismatch means a bug in the storage abstraction, not in the business logic.
+The same code ran in local mode, writing Parquet to `/tmp/c360_local` inside the Spark container, and every table was compared with its Iceberg counterpart: equal row counts, `exceptAll` empty in both directions on every non-floating column, and floating columns within 0.01 by key. All 26 comparisons are identical, covering 23 tables and the latest `dq_summary`, `integrity` and `ingestion` batches; the largest difference in `monetary` is 0.0. The storage abstraction changes no outcome.
 
-### Step 4 — Add Trino
+A mismatch can come from the storage layer or from a computation that depends on row order, and preparing the cross-check exposed one of the second kind. `NTILE(5)` placed tied customers on either side of a quintile boundary by arrival order: rebuilding RFM from the same rows after `repartition(16)` changed the frequency score of 3,028 customers. Breaking ties on `customer_id` made the result repeatable but not fair, as 29,143 customers with the same order count still received different scores. RFM now scores ties equally (§4.3), and the cross-check was repeated on the final code. Details are in Runs 4 and 5 of `run_log.md`.
 
-Add a `trino` service to `infra/docker-compose.yml` with an Iceberg catalog pointing at the REST catalog (`http://rest:8181`) and MinIO (`http://minio:9000`). Done when `SELECT * FROM iceberg.gold.customer_360 LIMIT 10` returns rows from the Trino CLI. Add the new service to the modification list in the compose header comment, which the upstream Apache-2.0 licence requires. Hide `silver.crm` and `quarantine.crm` with Trino's file-based access control, since they hold unmasked email, phone and address; the other Silver tables contain no personal data and some dashboards read them.
+### Step 4 — Add Trino · DONE
+
+Trino 483 runs as the `trino` service on host port 8085, with one catalog, `iceberg`, on the REST catalog and MinIO. The configuration is in `infra/trino/`. File-based access control makes the catalog read-only and gives no privileges on `crm` in `bronze`, `silver` and `quarantine`, which hold unmasked email, phone and address: the three tables are absent from `SHOW TABLES` and `information_schema`, and queries on them are denied. The other Silver tables contain no personal data and some dashboards read them.
+
+Verified from the Trino CLI: `customer_360` has 48,200 rows and 48,200 distinct ids; segment counts, the funnel and the latest `integrity` batch equal the Spark results; a `DELETE` is denied; snapshots are listed through `"customer_rfm$snapshots"`, which the REST catalog rejects when Spark requests them.
+
+Median latency over three runs of four dashboard queries: segment counts on `customer_360` 213 ms, the funnel 251 ms, customers and average monetary by country 315 ms, revenue by category joining `silver.orders` with `silver.product` 828 ms.
+
+Read through Trino, the reject counts in `metadata.dq_summary` add up to more than the rows quarantined, because a row can fail several rules. `dq_summary` now also records `quarantined_rows` for each source (Run 6), and Dashboard 6 computes its rejection rate from it.
 
 ### Step 5 — Add Superset and build the dashboards
 

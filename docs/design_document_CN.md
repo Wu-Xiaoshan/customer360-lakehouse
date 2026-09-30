@@ -1,7 +1,7 @@
 # 设计文档 — Customer 360 湖仓平台
 
 > Final Project · ID2221 Data-Intensive Computing
-> **状态：实现中。** pipeline 已在 Iceberg 上端到端运行，产出每个客户一行的 Customer 360 表。下一步是第 9 节的步骤 3。计划和分工见第 9 节，每次运行的数字见 `run_log.md`，待办见第 10 节。
+> **状态：实现中。** pipeline 已在 Iceberg 上端到端运行，产出每个客户一行的 Customer 360 表，在 local Parquet 上结果完全一致，并由 Trino 以只读方式对外提供查询。下一步是第 9 节的步骤 5（Superset）。计划和分工见第 9 节，每次运行的数字见 `run_log.md`，待办见第 10 节。
 
 ---
 
@@ -150,7 +150,7 @@
 
 **框架。** 一条规则是一个 `(名称, 条件)` 对；每个数据源声明自己的拒绝规则列表和警告规则列表。`dedup(df, key, order_by)` 用窗口函数实现实体级检查。跨源检查先把另一个数据源需要的列 join 进来，这样它仍然是普通的单表规则。
 
-**产出。** `silver.<源>` 存有效行及其 `_warn` 数组。`metadata.dq_summary` 按运行、数据源、严重级别和原因各一行。`metadata.integrity` 按每条关联关系，分别记录相对 Bronze 父表和相对 Silver 父表的孤儿数；两者之差就是我们自己的隔离造成的孤儿。
+**产出。** `silver.<源>` 存有效行及其 `_warn` 数组。`metadata.dq_summary` 按运行、数据源、严重级别和原因各一行，并附带该源的总行数和被隔离行数。`metadata.integrity` 按每条关联关系，分别记录相对 Bronze 父表和相对 Silver 父表的孤儿数；两者之差就是我们自己的隔离造成的孤儿。
 
 ### 4.3 Gold — 整合成 Customer 360
 
@@ -170,7 +170,7 @@
 
 **分析表。**
 
-- **RFM 分群**：按成功订单计算每个客户的 recency、frequency、monetary，各用 `NTILE(5)` 窗口函数打成五分位，再按组合映射到五个分群。
+- **RFM 分群**：按成功订单计算每个客户的 recency、frequency、monetary，各打 1 到 5 分，再按 R 和 F 的组合映射到五个分群。取值相同的客户一定得到相同的分数。recency 和 monetary 用 `percent_rank` 分五档，并列的值排名相同。frequency 直接用购买次数、封顶 5：它只有 15 个取值，而且集中在 1 到 4，任何按人数五等分的做法都会让购买次数相同的客户拿到不同的分；而 1、2、3、4、5+ 次本身就分别占购买客户的 18.5%、25.5%、23.2%、16.2%、16.6%。
 - **流失风险**：距上次下单的时长、退款或失败订单、负面工单三项各 0 到 2 分，总分映射成四个等级。
 - **营销优先级**：消费金额五分位与风险分组合。
 - **品类渗透率**：每个品类的购买客户数，商品被隔离的订单计入 `unknown`。
@@ -221,7 +221,7 @@
 
 为贴合项目范围与运行环境：源数据从只读落地目录读取，而非实时源数据库；调度用一个 shell 脚本（`run_pipeline.sh`），而非专门的编排器。小维表（product_catalog）不分区；大事实表按日期分区。
 
-最终容器构成：MinIO + `mc`（建桶）+ Spark/Jupyter + REST catalog，加上第 9 节步骤 4、5 完成后的 Trino 和 Superset。
+最终容器构成：MinIO + `mc`（建桶）+ Spark/Jupyter + REST catalog + Trino，第 9 节步骤 5 完成后再加上 Superset。
 
 ### 5.3 参考来源
 
@@ -233,7 +233,7 @@
 
 - **桶：** MinIO 里的 `s3://warehouse/`，沿用 Iceberg quickstart 的默认值。
 - **表命名：** catalog 为 `demo`，每层一个 namespace：`demo.bronze.orders`、`demo.silver.orders`、`demo.quarantine.orders`、`demo.gold.customer_360`。namespace 由 `lakehouse_io.ensure_namespaces()` 自动创建。
-- **运行元数据** 放在 `demo.metadata`，每次运行追加一批，以 `run_id` 区分：`ingestion`（每个源的行数和耗时）、`dq_summary`（每个源、严重级别、原因的行数）、`integrity`（每条关联关系的孤儿数）。
+- **运行元数据** 放在 `demo.metadata`，每次运行追加一批，以 `run_id` 区分：`ingestion`（每个源的行数和耗时）、`dq_summary`（每个源、严重级别、原因的行数，附带该源的总行数和被隔离行数）、`integrity`（每条关联关系的孤儿数）。
 - **分区：** 大事实表/行为表按日期分区（如 `order_date` 按月）；小维表（product_catalog、customers）**不分区**——基数低，分区会造成小文件开销。
 - **公共数据模型：** ISO-8601 UTC 时间戳；snake_case 列名；显式类型；规则结果存为 `_err` 和 `_warn` 数组。
 
@@ -253,7 +253,8 @@ customer360-lakehouse/          # 位于 WSL 内的 ~/customer360-lakehouse
 │   ├── dashboard_blueprint.md# dashboard 搭建规格（另有中文版）
 │   └── run_log.md            # 每次 pipeline 运行的计划和结果
 ├── infra/
-│   ├── docker-compose.yml    # MinIO + mc + Spark + REST catalog（Trino、Superset 待加）
+│   ├── docker-compose.yml    # MinIO + mc + Spark + REST catalog + Trino（Superset 待加）
+│   ├── trino/                # Trino 的 catalog 配置和访问规则
 │   ├── LICENSE.upstream      # 所扩展的 quickstart 的 Apache-2.0 许可证
 │   └── README.md             # 对上游的改动、端口、启动方式
 ├── src/
@@ -290,7 +291,7 @@ customer360-lakehouse/          # 位于 WSL 内的 ~/customer360-lakehouse
 
 ### 步骤 1 — 环境 · 已完成
 
-笔记本上的 WSL2（Ubuntu 24.04），Docker Engine 29.8.1、Compose v5.5.1。`cd infra && docker compose up -d` 启动四个服务：`spark-iceberg`、`rest`、`minio`、`mc`。重启后表不会丢失（见第 2 节）。
+笔记本上的 WSL2（Ubuntu 24.04），Docker Engine 29.8.1、Compose v5.5.1。`cd infra && docker compose up -d` 启动 `spark-iceberg`、`rest`、`minio`、`mc`，步骤 4 起还有 `trino`。重启后表不会丢失（见第 2 节）。
 
 ### 步骤 2 — 在 Iceberg 上跑通 pipeline · 已完成
 
@@ -320,13 +321,21 @@ Run 3 耗时 4 分 18 秒。880,500 行源数据产出有效行 557,646、隔离
 
 13 项检查全部通过：`customer_360` 行数 = 不同 ID 数 = Silver CRM 行数（48,200）；黄金记录保留了 `Parrish`；Silver 中没有晚于参考日期的数据；每个源 Silver + 隔离 = Bronze；漏斗递减；品类渗透率有 `unknown` 类；99.8% 的客户在窗口内有行为数据。完整数字见 `run_log.md`。
 
-### 步骤 3 — 与本地基线交叉验证 · 下一步
+### 步骤 3 — 与本地基线交叉验证 · 已完成
 
-用 `LAKEHOUSE_MODE=local` 和 `LOCAL_OUT=./warehouse` 再跑一遍，同一套代码改写 Parquet。完成标准：行数和 DQ 比例与步骤 2b 完全一致。对不上说明存储抽象层有 bug，而不是业务逻辑有问题。
+同一套代码以 local 模式运行，把 Parquet 写到 Spark 容器内的 `/tmp/c360_local`，再逐表与 Iceberg 的结果比对：行数相等；所有非浮点列两个方向的 `exceptAll` 都为空；浮点列按主键比对，差值不超过 0.01。26 项比对全部一致，覆盖 23 张表以及 `dq_summary`、`integrity`、`ingestion` 的最新一批；`monetary` 的最大差值为 0.0。存储抽象层没有改变任何结果。
 
-### 步骤 4 — 加 Trino
+差异既可能来自存储层，也可能来自依赖行顺序的计算，而准备交叉验证时就发现了后一种。`NTILE(5)` 按行到达的顺序决定并列客户落在五分位边界的哪一侧：用同样的行、只做 `repartition(16)` 重算 RFM，有 3,028 个客户的频次分变了。改用 `customer_id` 打破并列后，结果可以复现了，但并不公平，仍有 29,143 个购买次数相同的客户拿到不同的分数。现在 RFM 让并列的值得到相同分数（见 4.3），交叉验证也在最终代码上重跑过。详见 `run_log.md` 的 Run 4 和 Run 5。
 
-在 `infra/docker-compose.yml` 里加一个 `trino` 服务，配置 Iceberg catalog 指向 REST catalog（`http://rest:8181`）和 MinIO（`http://minio:9000`）。完成标准：在 Trino CLI 里执行 `SELECT * FROM iceberg.gold.customer_360 LIMIT 10` 能返回数据。新增的服务要写进 compose 顶部注释的改动清单，这是上游 Apache-2.0 许可证的要求。用 Trino 的文件式访问控制隐藏 `silver.crm` 和 `quarantine.crm`，因为它们存有未脱敏的邮箱、电话和地址；其他 Silver 表不含个人信息，部分 dashboard 需要读取它们。
+### 步骤 4 — 加 Trino · 已完成
+
+Trino 483 作为 `trino` 服务运行，宿主机端口 8085，只有一个 catalog `iceberg`，接 REST catalog 和 MinIO。配置在 `infra/trino/`。文件式访问控制把 catalog 设为只读，并且对 `bronze`、`silver`、`quarantine` 三层的 `crm` 不给任何权限，因为它们存有未脱敏的邮箱、电话和地址：这三张表不出现在 `SHOW TABLES` 和 `information_schema` 里，对它们的查询一律被拒绝。其他 Silver 表不含个人信息，部分 dashboard 需要读取它们。
+
+在 Trino CLI 中验证：`customer_360` 有 48,200 行、48,200 个不同 ID；分群人数、漏斗和最新一批 `integrity` 与 Spark 的结果一致；`DELETE` 被拒绝；通过 `"customer_rfm$snapshots"` 能列出快照，而 Spark 请求快照时会被 REST catalog 拒绝。
+
+四条 dashboard 典型查询各跑三次的延迟中位数：`customer_360` 分群计数 213 ms，漏斗 251 ms，按国家统计客户数和平均消费额 315 ms，`silver.orders` 与 `silver.product` join 后按品类统计收入 828 ms。
+
+通过 Trino 读 `metadata.dq_summary` 时发现，每个源的拒绝原因计数之和大于实际被隔离的行数，因为一行可以同时违反多条规则。`dq_summary` 现在为每个源另外记录 `quarantined_rows`（Run 6），面板 6 的隔离率改用这一列计算。
 
 ### 步骤 5 — 加 Superset，做 dashboard
 
