@@ -1,0 +1,25 @@
+slice_name: Spend distribution
+description: null
+certified_by: null
+certification_details: null
+viz_type: histogram_v2
+params:
+  column: monetary
+  groupby: []
+  adhoc_filters: []
+  row_limit: 50000
+  bins: 30
+  normalize: false
+  cumulative: false
+  x_axis_title: Total spend
+  y_axis_title: Customers
+  show_value: false
+  show_legend: false
+  color_scheme: supersetColors
+  viz_type: histogram_v2
+  datasource: 2__table
+query_context: null
+cache_timeout: null
+uuid: dbbb0f04-eb02-4f81-99a4-2128d162e091
+version: 1.0.0
+dataset_uuid: 6088df52-dc2f-4927-b781-52a6cba98025

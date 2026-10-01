@@ -1,0 +1,33 @@
+slice_name: Activity by hour
+description: Events in silver.clickstream by weekday (1 = Monday) and hour, UTC; no
+  Gold table covers event times.
+certified_by: null
+certification_details: null
+viz_type: heatmap_v2
+params:
+  x_axis: hour
+  groupby: weekday
+  metric:
+    expressionType: SQL
+    sqlExpression: SUM(events)
+    label: Events
+  adhoc_filters: []
+  row_limit: 1000
+  sort_x_axis: alpha_asc
+  sort_y_axis: alpha_desc
+  normalize_across: heatmap
+  legend_type: continuous
+  linear_color_scheme: superset_seq_1
+  xscale_interval: 1
+  yscale_interval: 1
+  show_legend: true
+  show_percentage: false
+  show_values: false
+  y_axis_format: SMART_NUMBER
+  viz_type: heatmap_v2
+  datasource: 10__table
+query_context: null
+cache_timeout: null
+uuid: aa80f62d-2f3d-4ef8-804a-045767041a80
+version: 1.0.0
+dataset_uuid: 1353c162-4e08-417b-a1e3-ff161bf8defd

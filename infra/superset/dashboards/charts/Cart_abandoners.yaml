@@ -1,0 +1,33 @@
+slice_name: Cart abandoners
+description: Customers who added to cart in the window without an order in it.
+certified_by: null
+certification_details: null
+viz_type: table
+params:
+  query_mode: raw
+  all_columns:
+  - customer_id
+  - cart_events
+  groupby: []
+  metrics: []
+  percent_metrics: []
+  adhoc_filters: []
+  order_by_cols:
+  - '["cart_events", false]'
+  row_limit: 50000
+  column_config:
+    monetary:
+      d3NumberFormat: ',.2f'
+  server_pagination: true
+  server_page_length: 15
+  include_search: false
+  show_cell_bars: false
+  table_timestamp_format: smart_date
+  order_desc: true
+  viz_type: table
+  datasource: 7__table
+query_context: null
+cache_timeout: null
+uuid: 54421324-e93b-49f4-82ed-7a75183bb9b2
+version: 1.0.0
+dataset_uuid: 3182918e-4955-47e9-951c-3c9992de7eeb

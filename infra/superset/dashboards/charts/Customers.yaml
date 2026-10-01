@@ -1,0 +1,20 @@
+slice_name: Customers
+description: null
+certified_by: null
+certification_details: null
+viz_type: big_number_total
+params:
+  metric:
+    expressionType: SQL
+    sqlExpression: COUNT(*)
+    label: Customers
+  adhoc_filters: []
+  y_axis_format: ',d'
+  header_font_size: 0.4
+  viz_type: big_number_total
+  datasource: 1__table
+query_context: null
+cache_timeout: null
+uuid: e72959fb-1563-46ab-9347-cab58cc9a2bb
+version: 1.0.0
+dataset_uuid: 5ecc63cc-463d-457d-868f-c5fe378210ec

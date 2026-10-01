@@ -1,7 +1,7 @@
 # 设计文档 — Customer 360 湖仓平台
 
 > Final Project · ID2221 Data-Intensive Computing
-> **状态：实现中。** pipeline 已在 Iceberg 上端到端运行，产出每个客户一行的 Customer 360 表，在 local Parquet 上结果完全一致，并由 Trino 以只读方式对外提供查询。下一步是第 9 节的步骤 5（Superset）。计划和分工见第 9 节，每次运行的数字见 `run_log.md`，待办见第 10 节。
+> **状态：实现中。** pipeline 已在 Iceberg 上端到端运行，产出每个客户一行的 Customer 360 表，在 local Parquet 上结果完全一致；Trino 以只读方式对外提供查询，六个 Superset 面板展示结果。下一步是第 9 节的步骤 6（可选）和步骤 7。计划和分工见第 9 节，每次运行的数字见 `run_log.md`，待办见第 10 节。
 
 ---
 
@@ -221,7 +221,7 @@
 
 为贴合项目范围与运行环境：源数据从只读落地目录读取，而非实时源数据库；调度用一个 shell 脚本（`run_pipeline.sh`），而非专门的编排器。小维表（product_catalog）不分区；大事实表按日期分区。
 
-最终容器构成：MinIO + `mc`（建桶）+ Spark/Jupyter + REST catalog + Trino，第 9 节步骤 5 完成后再加上 Superset。
+最终容器构成：MinIO + `mc`（建桶）+ Spark/Jupyter + REST catalog + Trino + Superset。
 
 ### 5.3 参考来源
 
@@ -253,8 +253,9 @@ customer360-lakehouse/          # 位于 WSL 内的 ~/customer360-lakehouse
 │   ├── dashboard_blueprint.md# dashboard 搭建规格（另有中文版）
 │   └── run_log.md            # 每次 pipeline 运行的计划和结果
 ├── infra/
-│   ├── docker-compose.yml    # MinIO + mc + Spark + REST catalog + Trino（Superset 待加）
+│   ├── docker-compose.yml    # MinIO + mc + Spark + REST catalog + Trino + Superset
 │   ├── trino/                # Trino 的 catalog 配置和访问规则
+│   ├── superset/             # Superset 镜像、启动脚本、导出的面板
 │   ├── LICENSE.upstream      # 所扩展的 quickstart 的 Apache-2.0 许可证
 │   └── README.md             # 对上游的改动、端口、启动方式
 ├── src/
@@ -291,7 +292,7 @@ customer360-lakehouse/          # 位于 WSL 内的 ~/customer360-lakehouse
 
 ### 步骤 1 — 环境 · 已完成
 
-笔记本上的 WSL2（Ubuntu 24.04），Docker Engine 29.8.1、Compose v5.5.1。`cd infra && docker compose up -d` 启动 `spark-iceberg`、`rest`、`minio`、`mc`，步骤 4 起还有 `trino`。重启后表不会丢失（见第 2 节）。
+笔记本上的 WSL2（Ubuntu 24.04），Docker Engine 29.8.1、Compose v5.5.1。`cd infra && docker compose up -d` 启动 `spark-iceberg`、`rest`、`minio`、`mc`，步骤 4 起还有 `trino`，步骤 5 起还有 `superset`。重启后表不会丢失（见第 2 节）。
 
 ### 步骤 2 — 在 Iceberg 上跑通 pipeline · 已完成
 
@@ -337,11 +338,20 @@ Trino 483 作为 `trino` 服务运行，宿主机端口 8085，只有一个 cata
 
 通过 Trino 读 `metadata.dq_summary` 时发现，每个源的拒绝原因计数之和大于实际被隔离的行数，因为一行可以同时违反多条规则。`dq_summary` 现在为每个源另外记录 `quarantined_rows`（Run 6），面板 6 的隔离率改用这一列计算。
 
-### 步骤 5 — 加 Superset，做 dashboard
+### 步骤 5 — 加 Superset，做 dashboard · 已完成
 
-在 compose 里加 `superset`，安装 Trino 驱动，连上 Trino。然后按 `dashboard_blueprint_CN.md` 的规格做六个面板，那份文档为每张图指明了数据源表和字段。
+Superset 6.1.0 作为 `superset` 服务运行，端口 8088，镜像里加装了 Trino 驱动，通过 `trino://superset@trino:8080/iceberg` 连接。`dashboard_blueprint_CN.md` 规定的六个面板共 33 张图、14 个数据集，导出在 `infra/superset/dashboards/`，Superset 在空卷上启动时会自动导入。数据集中 8 个直接对应 Gold 或 Silver 表，6 个是 SQL 数据集：各元数据表的最新一批、按品类的收入、按星期和小时的事件数，以及漏斗每一步的流失率。
 
-完成标准：每个 dashboard 都能渲染出来。做完要把 dashboard 从 Superset 导出到仓库里，这样别人部署一套新的也能导入——dashboard 存在 Superset 自己的数据库里，不导出就丢了。
+在一个从空卷启动的实例上，用无头浏览器验证。每张图都正常渲染，数字与 `run_log.md` 一致：
+- 48,200 个客户，其中 44,937 个下过单
+- 分群、风险等级和优先级与 Run 5 相同
+- 八个品类加 `unknown`
+- 漏斗从 47,055 降到 5,320
+- 隔离率 39.0、39.0、30.1、18.0、3.6%
+
+Drill to detail 能打开图表背后的 `customer_360` 明细行，Customer ID 筛选器能把“客户查询”缩小到单个客户。没有任何数据集含邮箱、电话或地址列。
+
+三次加载、直到所有图表渲染完成的时间中位数：面板 1 为 4.7 秒（含 48,200 行的客户查询表），其余面板 2.5 到 3.0 秒。
 
 ### 步骤 6 — 流失分类器（可选）
 

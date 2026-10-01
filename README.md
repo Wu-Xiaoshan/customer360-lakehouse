@@ -62,15 +62,15 @@ Writes to `demo.{bronze,silver,quarantine,gold,metadata}.*`. Namespaces are crea
 by `lakehouse_io.ensure_namespaces()`.
 
 Both modes run the same code. A table-by-table comparison of the two, covering all 23
-tables and the run metadata, found them identical (`docs/run_log.md`, Runs 4 and 5).
+tables and the run metadata, found them identical (`docs/run_log.md`, Runs 4 to 6).
 
 Every time-based metric is measured from `AS_OF_DATE` (default 2025-12-01, the last
 order date), and records dated after it are rejected. Behaviour metrics cover the
 `BEHAVIOUR_WINDOW_DAYS` (default 90) before it. `run_pipeline.sh` tags each run with a
 fresh `RUN_ID`.
 
-The compose file starts Spark, the Iceberg REST catalog, MinIO and Trino. Superset is
-added in a later step; see [infra/README.md](infra/README.md).
+The compose file starts Spark, the Iceberg REST catalog, MinIO, Trino and Superset;
+see [infra/README.md](infra/README.md).
 
 ### Querying through Trino
 
@@ -81,6 +81,21 @@ trino> SELECT segment, count(*) FROM iceberg.gold.customer_360 GROUP BY 1;
 
 Trino is read-only and hides the `crm` table in Bronze, Silver and quarantine, which
 holds unmasked personal data.
+
+### Dashboards
+
+Open http://localhost:8088 and log in as `admin` / `admin`. Superset imports six
+dashboards from `infra/superset/dashboards/` on its first start. Every chart is
+specified in `docs/dashboard_blueprint.md`.
+
+| Dashboard | Question |
+|---|---|
+| 1. Customer overview | who are our customers |
+| 2. RFM segmentation | how customer value is distributed |
+| 3. Churn risk and campaign priority | who to contact first |
+| 4. Product and category penetration | which categories sell, and which customers they reach |
+| 5. Behaviour and conversion | where customers drop out between browsing and buying |
+| 6. Data quality | what cleaning rejected and flagged, and what that cost downstream |
 
 ### Individual layers
 
@@ -151,8 +166,9 @@ docs/
   dashboard_blueprint.md  chart-by-chart dashboard specification
   run_log.md           plan and results of every pipeline run
 infra/
-  docker-compose.yml   Spark, Iceberg REST catalog, MinIO, Trino
+  docker-compose.yml   Spark, Iceberg REST catalog, MinIO, Trino, Superset
   trino/               Trino catalog and access rules
+  superset/            Superset image, start-up script, exported dashboards
   LICENSE.upstream     upstream Apache-2.0 licence
   README.md            modifications, ports, startup
 data/                  source CSVs, not version-controlled

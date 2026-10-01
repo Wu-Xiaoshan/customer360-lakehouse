@@ -1,0 +1,43 @@
+slice_name: High-priority customers
+description: priority = HIGH, highest spend first; masked names only.
+certified_by: null
+certification_details: null
+viz_type: table
+params:
+  query_mode: raw
+  all_columns:
+  - full_name_masked
+  - segment
+  - risk_level
+  - bad_orders
+  - negative_tickets
+  - monetary
+  groupby: []
+  metrics: []
+  percent_metrics: []
+  adhoc_filters:
+  - expressionType: SIMPLE
+    subject: priority
+    operator: ==
+    clause: WHERE
+    filterOptionName: 9ec53c034dc540b996d72c3ea22a541a
+    comparator: HIGH
+  order_by_cols:
+  - '["monetary", false]'
+  row_limit: 50000
+  column_config:
+    monetary:
+      d3NumberFormat: ',.2f'
+  server_pagination: true
+  server_page_length: 15
+  include_search: false
+  show_cell_bars: false
+  table_timestamp_format: smart_date
+  order_desc: true
+  viz_type: table
+  datasource: 1__table
+query_context: null
+cache_timeout: null
+uuid: 3a64ac6b-0388-43e1-a5fc-2c697838b612
+version: 1.0.0
+dataset_uuid: 5ecc63cc-463d-457d-868f-c5fe378210ec

@@ -1,0 +1,38 @@
+slice_name: Risk level distribution
+description: null
+certified_by: null
+certification_details: null
+viz_type: echarts_timeseries_bar
+params:
+  x_axis: risk_band
+  metrics:
+  - expressionType: SQL
+    sqlExpression: COUNT(*)
+    label: Customers
+  groupby: []
+  adhoc_filters: []
+  xAxisLabelRotation: 0
+  orientation: vertical
+  stack: null
+  show_value: true
+  show_legend: false
+  legendOrientation: top
+  row_limit: 1000
+  y_axis_format: ',d'
+  truncate_metric: true
+  rich_tooltip: true
+  color_scheme: supersetColors
+  x_axis_title: ''
+  x_axis_title_margin: 15
+  y_axis_title: ''
+  y_axis_title_margin: 15
+  y_axis_title_position: Left
+  x_axis_sort: risk_band
+  x_axis_sort_asc: true
+  viz_type: echarts_timeseries_bar
+  datasource: 3__table
+query_context: null
+cache_timeout: null
+uuid: 1d7d39fe-ecf8-4aa2-9649-973a166626a6
+version: 1.0.0
+dataset_uuid: 042d16f1-4757-46b0-98e6-09b651a84bb6

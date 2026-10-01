@@ -1,0 +1,33 @@
+slice_name: Acquisition channel
+description: null
+certified_by: null
+certification_details: null
+viz_type: pie
+params:
+  groupby:
+  - source
+  metric:
+    expressionType: SQL
+    sqlExpression: COUNT(*)
+    label: Customers
+  adhoc_filters: []
+  row_limit: 100
+  sort_by_metric: true
+  show_labels: true
+  label_type: percent
+  labels_outside: true
+  label_line: true
+  show_legend: true
+  legendOrientation: top
+  number_format: SMART_NUMBER
+  color_scheme: supersetColors
+  outerRadius: 70
+  donut: false
+  show_labels_threshold: 2
+  viz_type: pie
+  datasource: 1__table
+query_context: null
+cache_timeout: null
+uuid: cf5888f3-e3fe-4ff2-bcc5-140c2492f785
+version: 1.0.0
+dataset_uuid: 5ecc63cc-463d-457d-868f-c5fe378210ec

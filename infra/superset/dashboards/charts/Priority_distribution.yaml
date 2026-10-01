@@ -1,0 +1,38 @@
+slice_name: Priority distribution
+description: null
+certified_by: null
+certification_details: null
+viz_type: echarts_timeseries_bar
+params:
+  x_axis: priority
+  metrics:
+  - expressionType: SQL
+    sqlExpression: COUNT(*)
+    label: Customers
+  groupby: []
+  adhoc_filters: []
+  xAxisLabelRotation: 0
+  orientation: vertical
+  stack: null
+  show_value: true
+  show_legend: false
+  legendOrientation: top
+  row_limit: 1000
+  y_axis_format: ',d'
+  truncate_metric: true
+  rich_tooltip: true
+  color_scheme: supersetColors
+  x_axis_title: ''
+  x_axis_title_margin: 15
+  y_axis_title: ''
+  y_axis_title_margin: 15
+  y_axis_title_position: Left
+  x_axis_sort: Customers
+  x_axis_sort_asc: false
+  viz_type: echarts_timeseries_bar
+  datasource: 4__table
+query_context: null
+cache_timeout: null
+uuid: ca9a70f3-15c6-450d-9e08-075e0fa83942
+version: 1.0.0
+dataset_uuid: b770dbf2-fa49-4a4d-a0d9-32aedd5b86e7

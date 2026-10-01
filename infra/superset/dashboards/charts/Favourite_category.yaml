@@ -1,0 +1,43 @@
+slice_name: Favourite category
+description: null
+certified_by: null
+certification_details: null
+viz_type: echarts_timeseries_bar
+params:
+  x_axis: favourite_category
+  metrics:
+  - expressionType: SQL
+    sqlExpression: COUNT(*)
+    label: Customers
+  groupby: []
+  adhoc_filters:
+  - expressionType: SIMPLE
+    subject: favourite_category
+    operator: IS NOT NULL
+    clause: WHERE
+    filterOptionName: 8141700ce7464f5299de7435c5bd8941
+  xAxisLabelRotation: 30
+  orientation: vertical
+  stack: null
+  show_value: true
+  show_legend: false
+  legendOrientation: top
+  row_limit: 1000
+  y_axis_format: ',d'
+  truncate_metric: true
+  rich_tooltip: true
+  color_scheme: supersetColors
+  x_axis_title: ''
+  x_axis_title_margin: 15
+  y_axis_title: ''
+  y_axis_title_margin: 15
+  y_axis_title_position: Left
+  x_axis_sort: Customers
+  x_axis_sort_asc: false
+  viz_type: echarts_timeseries_bar
+  datasource: 1__table
+query_context: null
+cache_timeout: null
+uuid: d7d1470a-3d40-4001-8682-a2e74448a9ae
+version: 1.0.0
+dataset_uuid: 5ecc63cc-463d-457d-868f-c5fe378210ec

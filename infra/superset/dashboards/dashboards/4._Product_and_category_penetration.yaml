@@ -1,0 +1,169 @@
+dashboard_title: 4. Product and category penetration
+description: null
+css: null
+slug: product-category
+certified_by: null
+certification_details: null
+published: true
+uuid: 71142955-5271-456c-b6e3-ab72bb04b462
+position:
+  DASHBOARD_VERSION_KEY: v2
+  ROOT_ID:
+    type: ROOT
+    id: ROOT_ID
+    children:
+    - GRID_ID
+  GRID_ID:
+    type: GRID
+    id: GRID_ID
+    children:
+    - ROW-intro
+    - ROW-0
+    - ROW-1
+    parents:
+    - ROOT_ID
+  HEADER_ID:
+    id: HEADER_ID
+    type: HEADER
+    meta:
+      text: 4. Product and category penetration
+  ROW-intro:
+    type: ROW
+    id: ROW-intro
+    children:
+    - MARKDOWN-intro
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    meta:
+      background: BACKGROUND_TRANSPARENT
+  MARKDOWN-intro:
+    type: MARKDOWN
+    id: MARKDOWN-intro
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - ROW-intro
+    meta:
+      width: 12
+      height: 10
+      code: '**Which categories sell, and which customers they reach.** `unknown`
+        (grey) holds orders whose product was quarantined, 90 of 500 products; it
+        stays visible because it shows how far one rejection in the catalogue spreads.
+        Revenue and payment methods read Silver, which no Gold table covers.'
+  CHART-pen:
+    type: CHART
+    id: CHART-pen
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - ROW-0
+    meta:
+      width: 6
+      height: 50
+      chartId: 19
+      sliceName: Penetration by category
+      uuid: 19869863-bac2-4360-a01b-a6fc4960c819
+  CHART-rev:
+    type: CHART
+    id: CHART-rev
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - ROW-0
+    meta:
+      width: 6
+      height: 50
+      chartId: 20
+      sliceName: Revenue by category
+      uuid: f0f3dddd-3753-4bc8-bb51-074c0602aa8b
+  ROW-0:
+    type: ROW
+    id: ROW-0
+    children:
+    - CHART-pen
+    - CHART-rev
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    meta:
+      background: BACKGROUND_TRANSPARENT
+  CHART-fav:
+    type: CHART
+    id: CHART-fav
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - ROW-1
+    meta:
+      width: 4
+      height: 50
+      chartId: 21
+      sliceName: Favourite category
+      uuid: d7d1470a-3d40-4001-8682-a2e74448a9ae
+  CHART-pay:
+    type: CHART
+    id: CHART-pay
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - ROW-1
+    meta:
+      width: 4
+      height: 50
+      chartId: 22
+      sliceName: Payment methods
+      uuid: 94be29d3-42d6-4213-bfa9-d0e8a4edf6a7
+  CHART-repeat:
+    type: CHART
+    id: CHART-repeat
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - ROW-1
+    meta:
+      width: 4
+      height: 50
+      chartId: 23
+      sliceName: Repeat versus one-off
+      uuid: 33712beb-5011-4eb3-af92-7fd2aa63df54
+  ROW-1:
+    type: ROW
+    id: ROW-1
+    children:
+    - CHART-fav
+    - CHART-pay
+    - CHART-repeat
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    meta:
+      background: BACKGROUND_TRANSPARENT
+metadata:
+  color_scheme: supersetColors
+  label_colors:
+    unknown: '#9E9E9E'
+    clothing: '#1FA8C9'
+    kitchen: '#454E7C'
+    beauty: '#5AC189'
+    home: '#FF7F44'
+    sports: '#E04355'
+    automotive: '#FCC700'
+    electronics: '#A868B7'
+    toys: '#3CCCCB'
+  refresh_frequency: 0
+  expanded_slices: {}
+  timed_refresh_immune_slices: []
+  native_filter_configuration: []
+  shared_label_colors: []
+  map_label_colors: {}
+  color_scheme_domain: []
+  cross_filters_enabled: true
+theme_uuid: null
+version: 1.0.0

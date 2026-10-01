@@ -1,0 +1,183 @@
+dashboard_title: 2. RFM segmentation
+description: null
+css: null
+slug: rfm-segmentation
+certified_by: null
+certification_details: null
+published: true
+uuid: cf195247-c011-44d3-a11a-abc627629b74
+position:
+  DASHBOARD_VERSION_KEY: v2
+  ROOT_ID:
+    type: ROOT
+    id: ROOT_ID
+    children:
+    - GRID_ID
+  GRID_ID:
+    type: GRID
+    id: GRID_ID
+    children:
+    - ROW-intro
+    - ROW-0
+    - ROW-1
+    parents:
+    - ROOT_ID
+  HEADER_ID:
+    id: HEADER_ID
+    type: HEADER
+    meta:
+      text: 2. RFM segmentation
+  ROW-intro:
+    type: ROW
+    id: ROW-intro
+    children:
+    - MARKDOWN-intro
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    meta:
+      background: BACKGROUND_TRANSPARENT
+  MARKDOWN-intro:
+    type: MARKDOWN
+    id: MARKDOWN-intro
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - ROW-intro
+    meta:
+      width: 12
+      height: 10
+      code: '**How customer value is distributed.** Recency and monetary are scored
+        into quintiles and frequency by order count capped at 5; equal values share
+        a score. 44,937 customers with orders.'
+  CHART-seg:
+    type: CHART
+    id: CHART-seg
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - ROW-0
+    meta:
+      width: 6
+      height: 50
+      chartId: 8
+      sliceName: Customers per segment
+      uuid: 72133b57-7fee-4438-9cb3-496eb284cade
+  CHART-hv:
+    type: CHART
+    id: CHART-hv
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - ROW-0
+    meta:
+      width: 3
+      height: 50
+      chartId: 9
+      sliceName: High-value share (Ms = 5)
+      uuid: f57388ea-e9ba-4a0b-9b45-d413f893888f
+  CHART-buyers2:
+    type: CHART
+    id: CHART-buyers2
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - ROW-0
+    meta:
+      width: 3
+      height: 50
+      chartId: 10
+      sliceName: Customers scored
+      uuid: 55634db7-8509-4682-bb0d-eff3010912d8
+  ROW-0:
+    type: ROW
+    id: ROW-0
+    children:
+    - CHART-seg
+    - CHART-hv
+    - CHART-buyers2
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    meta:
+      background: BACKGROUND_TRANSPARENT
+  CHART-spend:
+    type: CHART
+    id: CHART-spend
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - ROW-1
+    meta:
+      width: 4
+      height: 50
+      chartId: 11
+      sliceName: Average spend per segment
+      uuid: 40699c02-b251-4755-82a5-8071ea27d072
+  CHART-freq:
+    type: CHART
+    id: CHART-freq
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - ROW-1
+    meta:
+      width: 4
+      height: 50
+      chartId: 12
+      sliceName: Average frequency per segment
+      uuid: 2f2bbb40-9bb2-4dad-82ea-d1ed89d0186f
+  CHART-spenddist:
+    type: CHART
+    id: CHART-spenddist
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - ROW-1
+    meta:
+      width: 4
+      height: 50
+      chartId: 13
+      sliceName: Spend distribution
+      uuid: dbbb0f04-eb02-4f81-99a4-2128d162e091
+  ROW-1:
+    type: ROW
+    id: ROW-1
+    children:
+    - CHART-spend
+    - CHART-freq
+    - CHART-spenddist
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    meta:
+      background: BACKGROUND_TRANSPARENT
+metadata:
+  color_scheme: supersetColors
+  label_colors:
+    unknown: '#9E9E9E'
+    clothing: '#1FA8C9'
+    kitchen: '#454E7C'
+    beauty: '#5AC189'
+    home: '#FF7F44'
+    sports: '#E04355'
+    automotive: '#FCC700'
+    electronics: '#A868B7'
+    toys: '#3CCCCB'
+  refresh_frequency: 0
+  expanded_slices: {}
+  timed_refresh_immune_slices: []
+  native_filter_configuration: []
+  shared_label_colors: []
+  map_label_colors: {}
+  color_scheme_domain: []
+  cross_filters_enabled: true
+theme_uuid: null
+version: 1.0.0

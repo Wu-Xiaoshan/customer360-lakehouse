@@ -38,6 +38,9 @@
 #   - added a trino service (trinodb/trino:483) with an Iceberg catalog on the
 #     REST catalog and MinIO, and file-based access control in ./trino that
 #     makes it read-only and hides the crm table in bronze, silver and quarantine
+#   - added a superset service, built from apache/superset:6.1.0 with the Trino
+#     driver (./superset/Dockerfile), which imports the dashboards in
+#     ./superset/dashboards on its first start
 # ---------------------------------------------------------------------------
 ---
 services:
@@ -134,8 +137,28 @@ services:
     ports:
       - 8085:8080
     mem_limit: 2g
+  superset:
+    build: ./superset
+    image: customer360-superset:6.1.0
+    container_name: superset
+    networks:
+      iceberg_net:
+    depends_on:
+      - trino
+    environment:
+      - SUPERSET_SECRET_KEY=customer360-demo-secret-key
+    volumes:
+      - superset_home:/app/superset_home
+      - ./superset/dashboards:/app/assets/dashboards
+      - ./superset/bootstrap.sh:/app/bootstrap.sh:ro
+      - ./superset/assets.sh:/app/assets.sh:ro
+    command: ["bash", "/app/bootstrap.sh"]
+    ports:
+      - 8088:8088
+    mem_limit: 1536m
 networks:
   iceberg_net:
 volumes:
   minio_data:
   rest_catalog:
+  superset_home:

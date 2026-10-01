@@ -1,0 +1,241 @@
+dashboard_title: 1. Customer overview
+description: null
+css: null
+slug: customer-overview
+certified_by: null
+certification_details: null
+published: true
+uuid: 06b532f1-bdee-450d-9dbd-1ddcd4663192
+position:
+  DASHBOARD_VERSION_KEY: v2
+  ROOT_ID:
+    type: ROOT
+    id: ROOT_ID
+    children:
+    - GRID_ID
+  GRID_ID:
+    type: GRID
+    id: GRID_ID
+    children:
+    - ROW-intro
+    - ROW-0
+    - ROW-1
+    - ROW-2
+    parents:
+    - ROOT_ID
+  HEADER_ID:
+    id: HEADER_ID
+    type: HEADER
+    meta:
+      text: 1. Customer overview
+  ROW-intro:
+    type: ROW
+    id: ROW-intro
+    children:
+    - MARKDOWN-intro
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    meta:
+      background: BACKGROUND_TRANSPARENT
+  MARKDOWN-intro:
+    type: MARKDOWN
+    id: MARKDOWN-intro
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - ROW-intro
+    meta:
+      width: 12
+      height: 10
+      code: '**Who are our customers.** One row per customer in `gold.customer_360`
+        (48,200). Right-click any chart and choose *Drill to detail* to see the customers
+        behind it, or look one up by ID in *Customer lookup* at the bottom.'
+  CHART-customers:
+    type: CHART
+    id: CHART-customers
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - ROW-0
+    meta:
+      width: 3
+      height: 30
+      chartId: 1
+      sliceName: Customers
+      uuid: e72959fb-1563-46ab-9347-cab58cc9a2bb
+  CHART-buyers:
+    type: CHART
+    id: CHART-buyers
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - ROW-0
+    meta:
+      width: 3
+      height: 30
+      chartId: 2
+      sliceName: Customers with orders
+      uuid: 74cc822e-bfed-4d00-b08b-e0a0f873fa39
+  CHART-channel:
+    type: CHART
+    id: CHART-channel
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - ROW-0
+    meta:
+      width: 3
+      height: 30
+      chartId: 3
+      sliceName: Acquisition channel
+      uuid: cf5888f3-e3fe-4ff2-bcc5-140c2492f785
+  CHART-gender:
+    type: CHART
+    id: CHART-gender
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - ROW-0
+    meta:
+      width: 3
+      height: 30
+      chartId: 4
+      sliceName: Gender split
+      uuid: 9a5d4670-8120-498e-b4b2-622ee849e938
+  ROW-0:
+    type: ROW
+    id: ROW-0
+    children:
+    - CHART-customers
+    - CHART-buyers
+    - CHART-channel
+    - CHART-gender
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    meta:
+      background: BACKGROUND_TRANSPARENT
+  CHART-countries:
+    type: CHART
+    id: CHART-countries
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - ROW-1
+    meta:
+      width: 6
+      height: 55
+      chartId: 5
+      sliceName: Countries (top 15)
+      uuid: 6a674797-064a-4977-a286-1aae2c3cd7a3
+  CHART-tenure:
+    type: CHART
+    id: CHART-tenure
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - ROW-1
+    meta:
+      width: 6
+      height: 55
+      chartId: 6
+      sliceName: Customer tenure
+      uuid: a417998d-6bb8-46ae-87ad-6c307e2d4696
+  ROW-1:
+    type: ROW
+    id: ROW-1
+    children:
+    - CHART-countries
+    - CHART-tenure
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    meta:
+      background: BACKGROUND_TRANSPARENT
+  CHART-lookup:
+    type: CHART
+    id: CHART-lookup
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - ROW-2
+    meta:
+      width: 12
+      height: 60
+      chartId: 7
+      sliceName: Customer lookup
+      uuid: b5f6cfce-6f1f-4765-99aa-00be46ac8792
+  ROW-2:
+    type: ROW
+    id: ROW-2
+    children:
+    - CHART-lookup
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    meta:
+      background: BACKGROUND_TRANSPARENT
+metadata:
+  color_scheme: supersetColors
+  label_colors:
+    unknown: '#9E9E9E'
+    clothing: '#1FA8C9'
+    kitchen: '#454E7C'
+    beauty: '#5AC189'
+    home: '#FF7F44'
+    sports: '#E04355'
+    automotive: '#FCC700'
+    electronics: '#A868B7'
+    toys: '#3CCCCB'
+  refresh_frequency: 0
+  expanded_slices: {}
+  timed_refresh_immune_slices: []
+  native_filter_configuration:
+  - id: NATIVE_FILTER-customer-id
+    name: Customer ID
+    filterType: filter_select
+    type: NATIVE_FILTER
+    targets:
+    - column:
+        name: customer_id
+      datasetUuid: 5ecc63cc-463d-457d-868f-c5fe378210ec
+    controlValues:
+      enableEmptyFilter: false
+      defaultToFirstItem: false
+      multiSelect: false
+      searchAllOptions: true
+      inverseSelection: false
+    defaultDataMask:
+      extraFormData: {}
+      filterState: {}
+      ownState: {}
+    cascadeParentIds: []
+    description: Show one customer in Customer lookup.
+    scope:
+      rootPath:
+      - ROOT_ID
+      excluded:
+      - 1
+      - 2
+      - 3
+      - 4
+      - 5
+      - 6
+    chartsInScope:
+    - 7
+    tabsInScope: []
+  shared_label_colors: []
+  map_label_colors: {}
+  color_scheme_domain: []
+  cross_filters_enabled: true
+theme_uuid: null
+version: 1.0.0

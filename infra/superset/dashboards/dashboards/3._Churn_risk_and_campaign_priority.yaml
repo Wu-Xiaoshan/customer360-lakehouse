@@ -1,0 +1,168 @@
+dashboard_title: 3. Churn risk and campaign priority
+description: null
+css: null
+slug: churn-risk
+certified_by: null
+certification_details: null
+published: true
+uuid: bdf91b09-55fc-417b-abc8-d1d4cff1ee98
+position:
+  DASHBOARD_VERSION_KEY: v2
+  ROOT_ID:
+    type: ROOT
+    id: ROOT_ID
+    children:
+    - GRID_ID
+  GRID_ID:
+    type: GRID
+    id: GRID_ID
+    children:
+    - ROW-intro
+    - ROW-0
+    - ROW-1
+    parents:
+    - ROOT_ID
+  HEADER_ID:
+    id: HEADER_ID
+    type: HEADER
+    meta:
+      text: 3. Churn risk and campaign priority
+  ROW-intro:
+    type: ROW
+    id: ROW-intro
+    children:
+    - MARKDOWN-intro
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    meta:
+      background: BACKGROUND_TRANSPARENT
+  MARKDOWN-intro:
+    type: MARKDOWN
+    id: MARKDOWN-intro
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - ROW-intro
+    meta:
+      width: 12
+      height: 10
+      code: '**Who to contact first.** The risk score adds three signals, 0 to 2 points
+        each: time since the last order, refunded or failed orders, and negative-sentiment
+        tickets. The total, 0 to 6, maps to four levels, shown with their score range.'
+  CHART-risk:
+    type: CHART
+    id: CHART-risk
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - ROW-0
+    meta:
+      width: 4
+      height: 50
+      chartId: 14
+      sliceName: Risk level distribution
+      uuid: 1d7d39fe-ecf8-4aa2-9649-973a166626a6
+  CHART-segrisk:
+    type: CHART
+    id: CHART-segrisk
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - ROW-0
+    meta:
+      width: 4
+      height: 50
+      chartId: 15
+      sliceName: Segment by risk
+      uuid: 37426f9a-458e-4c99-a804-82e6c16cbe62
+  CHART-drivers:
+    type: CHART
+    id: CHART-drivers
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - ROW-0
+    meta:
+      width: 4
+      height: 50
+      chartId: 16
+      sliceName: What drives the score
+      uuid: 074b4401-e609-490f-baf0-aadfe5962edd
+  ROW-0:
+    type: ROW
+    id: ROW-0
+    children:
+    - CHART-risk
+    - CHART-segrisk
+    - CHART-drivers
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    meta:
+      background: BACKGROUND_TRANSPARENT
+  CHART-prio:
+    type: CHART
+    id: CHART-prio
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - ROW-1
+    meta:
+      width: 4
+      height: 60
+      chartId: 17
+      sliceName: Priority distribution
+      uuid: ca9a70f3-15c6-450d-9e08-075e0fa83942
+  CHART-highprio:
+    type: CHART
+    id: CHART-highprio
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - ROW-1
+    meta:
+      width: 8
+      height: 60
+      chartId: 18
+      sliceName: High-priority customers
+      uuid: 3a64ac6b-0388-43e1-a5fc-2c697838b612
+  ROW-1:
+    type: ROW
+    id: ROW-1
+    children:
+    - CHART-prio
+    - CHART-highprio
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    meta:
+      background: BACKGROUND_TRANSPARENT
+metadata:
+  color_scheme: supersetColors
+  label_colors:
+    unknown: '#9E9E9E'
+    clothing: '#1FA8C9'
+    kitchen: '#454E7C'
+    beauty: '#5AC189'
+    home: '#FF7F44'
+    sports: '#E04355'
+    automotive: '#FCC700'
+    electronics: '#A868B7'
+    toys: '#3CCCCB'
+  refresh_frequency: 0
+  expanded_slices: {}
+  timed_refresh_immune_slices: []
+  native_filter_configuration: []
+  shared_label_colors: []
+  map_label_colors: {}
+  color_scheme_domain: []
+  cross_filters_enabled: true
+theme_uuid: null
+version: 1.0.0

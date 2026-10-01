@@ -1,0 +1,25 @@
+slice_name: Events per customer
+description: null
+certified_by: null
+certification_details: null
+viz_type: histogram_v2
+params:
+  column: events_90d
+  groupby: []
+  adhoc_filters: []
+  row_limit: 50000
+  bins: 20
+  normalize: false
+  cumulative: false
+  x_axis_title: Events in the 90-day window
+  y_axis_title: Customers
+  show_value: false
+  show_legend: false
+  color_scheme: supersetColors
+  viz_type: histogram_v2
+  datasource: 1__table
+query_context: null
+cache_timeout: null
+uuid: af44347e-434b-4ad0-abed-93090b7ff4cb
+version: 1.0.0
+dataset_uuid: 5ecc63cc-463d-457d-868f-c5fe378210ec

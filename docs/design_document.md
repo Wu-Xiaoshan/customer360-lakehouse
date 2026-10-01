@@ -1,7 +1,7 @@
 # Design Document — Customer 360 Lakehouse Platform
 
 > Final Project · ID2221 Data-Intensive Computing
-> **Status: implementation in progress.** The pipeline runs end to end on Iceberg and produces a Customer 360 table with one row per customer, with identical results on local Parquet, and Trino serves it read-only. §9 step 5 (Superset) is next. The plan and the division of work are in §9, the numbers from each run are in `run_log.md`, and the open items are in §10.
+> **Status: implementation in progress.** The pipeline runs end to end on Iceberg and produces a Customer 360 table with one row per customer, with identical results on local Parquet. Trino serves it read-only, and six Superset dashboards show it. §9 step 6 (optional) and step 7 are next. The plan and the division of work are in §9, the numbers from each run are in `run_log.md`, and the open items are in §10.
 
 ---
 
@@ -221,7 +221,7 @@ Email, phone and address never reach this table. Customers without orders are ke
 
 To fit the project scope and the target runtime, the platform reads files from a read-only landing directory rather than live source databases, and uses a shell script (`run_pipeline.sh`) rather than a dedicated orchestrator. Small dimension tables (product_catalog) are not partitioned; large fact tables are partitioned by date.
 
-Resulting container footprint: MinIO + `mc` (bucket setup) + Spark/Jupyter + REST catalog + Trino, plus Superset once §9 step 5 is done.
+Resulting container footprint: MinIO + `mc` (bucket setup) + Spark/Jupyter + REST catalog + Trino + Superset.
 
 ### 5.3 References
 
@@ -253,8 +253,9 @@ customer360-lakehouse/          # lives at ~/customer360-lakehouse inside WSL
 │   ├── dashboard_blueprint.md# dashboard build specification (and a Chinese copy)
 │   └── run_log.md            # plan and results of every pipeline run
 ├── infra/
-│   ├── docker-compose.yml    # MinIO + mc + Spark + REST catalog + Trino (Superset to come)
+│   ├── docker-compose.yml    # MinIO + mc + Spark + REST catalog + Trino + Superset
 │   ├── trino/                # Trino catalog and access rules
+│   ├── superset/             # Superset image, start-up script, exported dashboards
 │   ├── LICENSE.upstream      # Apache-2.0 licence of the quickstart we extend
 │   └── README.md             # modifications to upstream, ports, startup
 ├── src/
@@ -291,7 +292,7 @@ Each step is independently verifiable, so that a failure is traceable to a singl
 
 ### Step 1 — Environment · DONE
 
-WSL2 (Ubuntu 24.04) on a laptop, Docker Engine 29.8.1, Compose v5.5.1. `cd infra && docker compose up -d` starts `spark-iceberg`, `rest`, `minio`, `mc` and, from step 4, `trino`. Tables persist across restarts (§2).
+WSL2 (Ubuntu 24.04) on a laptop, Docker Engine 29.8.1, Compose v5.5.1. `cd infra && docker compose up -d` starts `spark-iceberg`, `rest`, `minio`, `mc`, from step 4 `trino` and from step 5 `superset`. Tables persist across restarts (§2).
 
 ### Step 2 — Run the pipeline on Iceberg · DONE
 
@@ -337,11 +338,20 @@ Median latency over three runs of four dashboard queries: segment counts on `cus
 
 Read through Trino, the reject counts in `metadata.dq_summary` add up to more than the rows quarantined, because a row can fail several rules. `dq_summary` now also records `quarantined_rows` for each source (Run 6), and Dashboard 6 computes its rejection rate from it.
 
-### Step 5 — Add Superset and build the dashboards
+### Step 5 — Add Superset and build the dashboards · DONE
 
-Add `superset` to the compose file, install the Trino driver, and connect it to Trino. Then build the six dashboards specified in `dashboard_blueprint.md`, which names the source table and fields for every chart.
+Superset 6.1.0 runs as the `superset` service on port 8088, built with the Trino driver and connected through `trino://superset@trino:8080/iceberg`. The six dashboards of `dashboard_blueprint.md`, 33 charts on 14 datasets, are exported to `infra/superset/dashboards/` and imported when Superset starts on an empty volume. Eight datasets are Gold or Silver tables. Six are SQL: the latest batch of each metadata table, revenue by category, events by weekday and hour, and drop-off per funnel step.
 
-Done when every dashboard renders. Export the dashboards from Superset into the repository so that a fresh instance can import them; dashboards live in Superset's own database and are lost otherwise.
+Verified in a headless browser on an instance started from an empty volume. Every chart renders without error, and the figures match `run_log.md`:
+- 48,200 customers, 44,937 with orders
+- the Run 5 segment, risk and priority counts
+- eight categories plus `unknown`
+- the funnel from 47,055 to 5,320
+- rejection rates of 39.0, 39.0, 30.1, 18.0 and 3.6%
+
+Drill to detail opens the `customer_360` rows behind a chart, and the Customer ID filter narrows *Customer lookup* to one customer. No dataset has an email, phone or address column.
+
+Median load time over three loads, until every chart has rendered: 4.7 s for Dashboard 1, which holds the 48,200-row lookup table, and 2.5 to 3.0 s for the others.
 
 ### Step 6 — Churn classifier (optional)
 

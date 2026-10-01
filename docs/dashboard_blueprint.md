@@ -1,7 +1,7 @@
 # Dashboard build specification
 
-Six dashboards. Each chart names its source table, its fields, how it is computed and
-what counts as done. Everything is SQL aggregation; no ML is involved.
+Six dashboards, built in Superset and stored in `infra/superset/dashboards/`. Each
+chart names its source, its fields, how it is computed and what counts as done. Everything is SQL aggregation; no ML is involved.
 
 Figures come from Run 3 on 2026-09-26, and the RFM, segment and priority figures from
 Run 5 on 2026-10-01; the full record is in `run_log.md`. Time-based
@@ -17,8 +17,8 @@ the 90 days before it.
 | Item | Status | Note |
 |---|---|---|
 | Gold and metadata tables | done | listed below |
-| Trino service | done | design document §9 step 4; Superset connects with `trino://trino:8080/iceberg` |
-| Superset service | **not done** | design document §9 step 5 |
+| Trino service | done | design document §9 step 4; Superset connects with `trino://superset@trino:8080/iceberg` |
+| Superset service | done | design document §9 step 5; http://localhost:8088, `admin` / `admin` |
 | Hide the CRM tables in Trino | done | `crm` in `bronze`, `silver` and `quarantine` holds unmasked email, phone and address |
 
 **Available sources**
@@ -40,13 +40,25 @@ the 90 days before it.
 | `metadata.ingestion` | per run | run_id, source, rows, seconds, ingested_at |
 
 Prefer the Gold tables. Query Silver only where Gold does not cover the metric, and
-say so in the chart description. Metadata tables hold one batch per run: always filter
-on the latest `run_id`.
+say so in the chart description. Metadata tables hold one batch per run, so charts
+read them through the `_latest` datasets below.
 
 `session_id` and `device_id` in the clickstream are not usable keys (design document
 §3.2), so no chart groups by them.
 
-**Naming.** Superset datasets carry the table name, for example `gold_customer_360`.
+**Datasets.** A table dataset is named after its table, for example `customer_360` in
+schema `gold`. Six SQL datasets cover what no single table does:
+
+| Dataset | Content |
+|---|---|
+| `metadata_dq_summary_latest`, `metadata_integrity_latest`, `metadata_ingestion_latest` | the latest batch of each metadata table |
+| `silver_revenue_by_category` | successful orders with their product category, `unknown` where the product was quarantined |
+| `silver_clickstream_hourly` | events by weekday and hour from 2025-09-02 |
+| `gold_behavior_funnel_dropoff` | funnel steps with the drop-off from the previous step |
+
+Calculated columns: `tenure_years` on `customer_360`, `buyer_type` on `customer_rfm`,
+`risk_band` on `customer_risk` and `step_label` on `behavior_funnel`. Trino returns
+column names in lower case, so `R`, `Fs` and `Ms` appear as `r`, `fs` and `ms`.
 
 ---
 
@@ -61,7 +73,8 @@ Answers: who are our customers.
 | Acquisition channel | pie | `gold.customer_360` | group by `source` |
 | Gender split | pie | `gold.customer_360` | group by `gender` |
 | Countries | bar, top 15 | `gold.customer_360` | group by `country`, descending |
-| Customer tenure | histogram | `gold.customer_360` | bucket `tenure_days` into years |
+| Customer tenure | bar | `gold.customer_360` | customers by `tenure_years`, whole years since signup |
+| Customer lookup | table | `gold.customer_360` | every column, highest spend first; the Customer ID filter narrows it to one customer |
 
 **Done when** both big numbers match the table above and no chart exposes email,
 phone or address.
@@ -83,6 +96,7 @@ combination of `R` and `Fs` places each customer in one of five segments.
 | Average frequency per segment | bar | `gold.customer_rfm` | `avg(frequency)` by `segment` |
 | Spend distribution | histogram | `gold.customer_rfm` | bucket `monetary` |
 | High-value share | big number | `gold.customer_rfm` | share of customers with `Ms = 5`, 20% by construction |
+| Customers scored | big number | `gold.customer_rfm` | `count(*)`, expect 44,937 |
 
 Run 5: Hibernating 11,615, Loyal 10,188, Champions 8,581, Others 8,167, At Risk 6,386.
 
@@ -96,13 +110,14 @@ Answers: who to contact first.
 
 The risk score adds three signals, 0 to 2 points each: time since the last order,
 refunded or failed orders, and negative-sentiment support tickets. The total, 0 to 6,
-maps to four levels.
+maps to four levels. The charts label each level with its score range (`risk_band`:
+`0 Very Low`, `1 Low`, `2-3 Medium`, `4-6 High`), which also keeps them in order.
 
 | Chart | Type | Source | Fields and computation |
 |---|---|---|---|
-| Risk level distribution | bar | `gold.customer_risk` | group by `risk_level` |
-| Segment by risk | stacked bar | `gold.customer_risk` | group by `segment`, stack `risk_level` |
-| What drives the score | bar | `gold.customer_risk` | `avg(bad_orders)` and `avg(neg_tickets)` by `risk_level` |
+| Risk level distribution | bar | `gold.customer_risk` | group by `risk_band` |
+| Segment by risk | stacked bar | `gold.customer_risk` | group by `segment`, stack `risk_band` |
+| What drives the score | bar | `gold.customer_risk` | `avg(bad_orders)` and `avg(neg_tickets)` by `risk_band` |
 | Priority distribution | bar | `gold.campaign_priority` | group by `priority` |
 | High-priority customers | table | `gold.customer_360` | `priority = 'HIGH'` ordered by `monetary`: masked name, segment, risk level, bad orders, negative tickets, spend |
 
@@ -119,9 +134,9 @@ Answers: which categories sell, and which customers they reach.
 
 | Chart | Type | Source | Fields and computation |
 |---|---|---|---|
-| Penetration by category | bar | `gold.category_penetration` | `penetration_pct` descending, with `unknown` shown apart, for example in grey |
+| Penetration by category | bar | `gold.category_penetration` | `penetration_pct` descending, `unknown` in grey |
 | Favourite category | bar | `gold.customer_360` | group by `favourite_category` |
-| Revenue by category | bar | `silver.orders` left join `silver.product` | sum `order_amount` by `category` where `status = 'success'`, null category as `unknown`; no Gold table covers revenue |
+| Revenue by category | bar | `silver_revenue_by_category` | sum `order_amount` by `category`: `silver.orders` left join `silver.product` where `status = 'success'`, null category as `unknown`; no Gold table covers revenue |
 | Payment methods | pie | `silver.orders` | group by `payment_method`: card, wallet, upi, cash, unknown |
 | Repeat versus one-off | pie | `gold.customer_rfm` | `frequency = 1` against `frequency > 1` |
 
@@ -130,7 +145,8 @@ home 26.7%, sports 25.0%, automotive 24.7%, electronics 24.5%, toys 23.0%.
 
 `unknown` holds orders whose product was quarantined (90 of 500 products). It reaches
 42.3% of buyers, so it must stay visible: dropping it would hide how far one
-rejection in the catalogue spreads.
+rejection in the catalogue spreads. The dashboard gives every category a fixed colour
+and keeps grey for `unknown`.
 
 **Done when** exactly eight named categories plus `unknown` appear.
 
@@ -147,10 +163,10 @@ decrease and the gap between steps is the loss.
 
 | Chart | Type | Source | Fields and computation |
 |---|---|---|---|
-| Conversion funnel | funnel | `gold.behavior_funnel` | `customers` ordered by `step_no`. **Sort by `step_no`**, not by label |
-| Drop-off per step | bar | `gold.behavior_funnel` | difference between consecutive steps over the earlier step |
+| Conversion funnel | funnel | `gold.behavior_funnel` | `customers` per `step_label` (`1. page_view` to `4. purchase`), in step order, with the share of the first step |
+| Drop-off per step | bar | `gold_behavior_funnel_dropoff` | difference between consecutive steps over the earlier step |
 | Cart abandoners | table | `gold.cart_abandoners` | ordered by `cart_events` descending |
-| Activity by hour | heatmap | `silver.clickstream` | `event_time` from 2025-09-02 on, by weekday and hour |
+| Activity by hour | heatmap | `silver_clickstream_hourly` | `event_time` from 2025-09-02 on, by weekday and hour |
 | Events per customer | histogram | `gold.customer_360` | bucket `events_90d` |
 
 Run 3 funnel: page_view 47,055 → search 28,644 → add_to_cart 17,568 → purchase 5,320,
@@ -165,15 +181,15 @@ table has 20,652 rows.
 
 Answers: what the cleaning layer rejected, what it flagged, and what it cost downstream.
 
-Filter every chart on the latest `run_id`.
+Every chart shows the latest run, through the `_latest` datasets.
 
 | Chart | Type | Source | Fields and computation |
 |---|---|---|---|
-| Rejection rate per source | bar | `metadata.dq_summary` | `max(quarantined_rows) / max(source_rows)` per `source`. Do not sum the reject `rows`: a row can fail several rules, so they add up to more than the rows quarantined |
-| Rejection reasons | stacked bar | `metadata.dq_summary` | `severity = 'reject'`, group by `source`, stack `reason` |
-| Warnings | stacked bar | `metadata.dq_summary` | `severity = 'warn'`, group by `source`, stack `reason` |
-| Orphans before and after cleaning | grouped bar | `metadata.integrity` | `orphans_vs_bronze` beside `orphans_vs_silver` per `relationship` |
-| Ingestion time | bar | `metadata.ingestion` | `seconds` by `source` |
+| Rejection rate per source | bar | `metadata_dq_summary_latest` | `max(quarantined_rows) / max(source_rows)` per `source`. Do not sum the reject `rows`: a row can fail several rules, so they add up to more than the rows quarantined |
+| Rejection reasons | stacked bar | `metadata_dq_summary_latest` | `severity = 'reject'`, group by `source`, stack `reason` |
+| Warnings | stacked bar | `metadata_dq_summary_latest` | `severity = 'warn'`, group by `source`, stack `reason` |
+| Orphans before and after cleaning | grouped bar | `metadata_integrity_latest` | `orphans_vs_bronze` beside `orphans_vs_silver` per `relationship` |
+| Ingestion time | bar | `metadata_ingestion_latest` | `seconds` by `source` |
 
 Run 3 rejection rates: orders 39.0%, clickstream 39.0%, tickets 30.1%, product 18.0%,
 CRM 3.6% (all of it duplicate customer records). Largest warnings: missing quantity
@@ -189,12 +205,17 @@ the orphans are what our own quarantine of 90 products does to the orders.
 
 ## Customer drill-down
 
-Shared by all dashboards, always from `gold.customer_360`.
+A single customer's record: masked name, geography, acquisition channel, tenure, the
+three RFM values and segment, bad orders, favourite category, ticket counts and last
+issue, events and cart events in the last 90 days, risk level and score, and campaign
+priority. Two ways to open it:
 
-From any aggregate chart, open a single customer: masked name, geography,
-acquisition channel, tenure, the three RFM values and segment, bad orders, favourite
-category, ticket counts and last issue, events and cart events in the last 90 days,
-risk level and score, and campaign priority.
+- **Drill to detail.** Right-click a chart and choose *Drill to detail*, or *Drill to
+  detail by* a value, to list the rows behind it. On charts that read
+  `gold.customer_360` these are the full customer records; other charts list the rows
+  of their own dataset.
+- **Customer lookup**, at the bottom of Dashboard 1: every customer, highest spend
+  first. The Customer ID filter in the filter bar narrows it to one customer.
 
 **Masked fields only.** `gold.customer_360` excludes email, phone and address at the
 point it is built, so no dashboard misconfiguration can leak them. State this in the
@@ -202,20 +223,15 @@ report.
 
 ---
 
-## Build order and ownership
+## Changing a dashboard
 
-| Order | Work | Depends on | Owner |
-|---|---|---|---|
-| 1 | Add Trino, hide the CRM tables, confirm it reads Gold and metadata (done) | Gold tables | `[name]` |
-| 2 | Add Superset, connect to Trino, create datasets | Trino | `[name]` |
-| 3 | Dashboards 2 and 3 | datasets | `[name]` |
-| 4 | Dashboards 1 and 4 | datasets | `[name]` |
-| 5 | Dashboard 6 | datasets | `[name]` |
-| 6 | Dashboard 5 | datasets | `[name]` |
+Superset stores dashboards in its own database, not in Iceberg. After changing one in
+the UI, write it back to the repository and commit `infra/superset/dashboards/`:
 
-Dashboards 2 and 3 come first because they read Gold tables as they are, which makes
-them the quickest way to prove the Superset to Iceberg path works.
+```bash
+cd infra
+docker compose exec superset bash /app/assets.sh export
+```
 
-**Export when finished.** Superset stores dashboards in its own database, not in
-Iceberg. Export them to files and commit them, otherwise a fresh deployment starts
-empty and the reproducibility requirement fails.
+A fresh deployment imports the committed version on its first start. The commands for
+re-importing and for starting from an empty Superset are in `infra/README.md`.

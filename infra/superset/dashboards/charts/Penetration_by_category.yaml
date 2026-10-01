@@ -1,0 +1,41 @@
+slice_name: Penetration by category
+description: Share of buyers who bought in each category.
+certified_by: null
+certification_details: null
+viz_type: echarts_timeseries_bar
+params:
+  x_axis: category
+  metrics:
+  - expressionType: SQL
+    sqlExpression: MAX(penetration_pct)
+    label: Penetration %
+  groupby:
+  - expressionType: SQL
+    sqlExpression: category
+    label: category_series
+  adhoc_filters: []
+  xAxisLabelRotation: 30
+  orientation: vertical
+  stack: Stack
+  show_value: true
+  show_legend: false
+  legendOrientation: top
+  row_limit: 1000
+  y_axis_format: .1f
+  truncate_metric: true
+  rich_tooltip: true
+  color_scheme: supersetColors
+  x_axis_title: ''
+  x_axis_title_margin: 15
+  y_axis_title: ''
+  y_axis_title_margin: 15
+  y_axis_title_position: Left
+  x_axis_sort: sum
+  x_axis_sort_asc: false
+  viz_type: echarts_timeseries_bar
+  datasource: 5__table
+query_context: null
+cache_timeout: null
+uuid: 19869863-bac2-4360-a01b-a6fc4960c819
+version: 1.0.0
+dataset_uuid: 04358e58-d1e7-4728-9e12-9da1a90f0d46

@@ -1,0 +1,43 @@
+slice_name: Orphans before and after cleaning
+description: 'Child rows whose parent key is missing. orders -> product has 0 orphans
+  against Bronze and 33,022 against Silver: they are what quarantining 90 products
+  does to the orders. device_id never matches the CRM.'
+certified_by: null
+certification_details: null
+viz_type: echarts_timeseries_bar
+params:
+  x_axis: relationship
+  metrics:
+  - expressionType: SQL
+    sqlExpression: SUM(orphans_vs_bronze)
+    label: Against Bronze
+  - expressionType: SQL
+    sqlExpression: SUM(orphans_vs_silver)
+    label: Against Silver
+  groupby: []
+  adhoc_filters: []
+  xAxisLabelRotation: 0
+  orientation: horizontal
+  stack: null
+  show_value: true
+  show_legend: true
+  legendOrientation: top
+  row_limit: 1000
+  y_axis_format: ',d'
+  truncate_metric: true
+  rich_tooltip: true
+  color_scheme: supersetColors
+  x_axis_title: ''
+  x_axis_title_margin: 15
+  y_axis_title: ''
+  y_axis_title_margin: 15
+  y_axis_title_position: Left
+  x_axis_sort: relationship
+  x_axis_sort_asc: false
+  viz_type: echarts_timeseries_bar
+  datasource: 13__table
+query_context: null
+cache_timeout: null
+uuid: 9688a431-5c9f-4129-af0a-773fb38d9663
+version: 1.0.0
+dataset_uuid: a62de457-263b-4f2f-a299-3bc46fa8767c

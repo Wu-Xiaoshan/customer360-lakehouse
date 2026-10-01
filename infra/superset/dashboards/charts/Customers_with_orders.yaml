@@ -1,0 +1,26 @@
+slice_name: Customers with orders
+description: null
+certified_by: null
+certification_details: null
+viz_type: big_number_total
+params:
+  metric:
+    expressionType: SQL
+    sqlExpression: COUNT(*)
+    label: Customers
+  adhoc_filters:
+  - expressionType: SIMPLE
+    subject: segment
+    operator: '!='
+    clause: WHERE
+    filterOptionName: 0a7bd8b744344422ab1e3f6a6d8adc59
+    comparator: No Purchase
+  y_axis_format: ',d'
+  header_font_size: 0.4
+  viz_type: big_number_total
+  datasource: 1__table
+query_context: null
+cache_timeout: null
+uuid: 74cc822e-bfed-4d00-b08b-e0a0f873fa39
+version: 1.0.0
+dataset_uuid: 5ecc63cc-463d-457d-868f-c5fe378210ec

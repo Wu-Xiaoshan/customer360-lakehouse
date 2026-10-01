@@ -1,0 +1,179 @@
+dashboard_title: 5. Behaviour and conversion
+description: null
+css: null
+slug: behaviour-conversion
+certified_by: null
+certification_details: null
+published: true
+uuid: 09aff10e-1f78-48e8-99ea-2d4344c038eb
+position:
+  DASHBOARD_VERSION_KEY: v2
+  ROOT_ID:
+    type: ROOT
+    id: ROOT_ID
+    children:
+    - GRID_ID
+  GRID_ID:
+    type: GRID
+    id: GRID_ID
+    children:
+    - ROW-intro
+    - ROW-0
+    - ROW-1
+    - ROW-2
+    parents:
+    - ROOT_ID
+  HEADER_ID:
+    id: HEADER_ID
+    type: HEADER
+    meta:
+      text: 5. Behaviour and conversion
+  ROW-intro:
+    type: ROW
+    id: ROW-intro
+    children:
+    - MARKDOWN-intro
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    meta:
+      background: BACKGROUND_TRANSPARENT
+  MARKDOWN-intro:
+    type: MARKDOWN
+    id: MARKDOWN-intro
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - ROW-intro
+    meta:
+      width: 12
+      height: 10
+      code: '**Where customers drop out between browsing and buying.** Every chart
+        covers 2025-09-02 to 2025-12-01, the 90 days before the reference date and
+        the only period in which browsing and purchase data overlap. Each funnel step
+        is a subset of the previous one.'
+  CHART-funnel:
+    type: CHART
+    id: CHART-funnel
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - ROW-0
+    meta:
+      width: 6
+      height: 50
+      chartId: 24
+      sliceName: Conversion funnel
+      uuid: e85c3347-aaa6-412f-a7f4-88d3775ecc1f
+  CHART-drop:
+    type: CHART
+    id: CHART-drop
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - ROW-0
+    meta:
+      width: 6
+      height: 50
+      chartId: 25
+      sliceName: Drop-off per step
+      uuid: af84da21-9986-45c7-b623-2d8fa208833b
+  ROW-0:
+    type: ROW
+    id: ROW-0
+    children:
+    - CHART-funnel
+    - CHART-drop
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    meta:
+      background: BACKGROUND_TRANSPARENT
+  CHART-heat:
+    type: CHART
+    id: CHART-heat
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - ROW-1
+    meta:
+      width: 8
+      height: 50
+      chartId: 26
+      sliceName: Activity by hour
+      uuid: aa80f62d-2f3d-4ef8-804a-045767041a80
+  CHART-events:
+    type: CHART
+    id: CHART-events
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - ROW-1
+    meta:
+      width: 4
+      height: 50
+      chartId: 27
+      sliceName: Events per customer
+      uuid: af44347e-434b-4ad0-abed-93090b7ff4cb
+  ROW-1:
+    type: ROW
+    id: ROW-1
+    children:
+    - CHART-heat
+    - CHART-events
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    meta:
+      background: BACKGROUND_TRANSPARENT
+  CHART-cart:
+    type: CHART
+    id: CHART-cart
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - ROW-2
+    meta:
+      width: 12
+      height: 50
+      chartId: 28
+      sliceName: Cart abandoners
+      uuid: 54421324-e93b-49f4-82ed-7a75183bb9b2
+  ROW-2:
+    type: ROW
+    id: ROW-2
+    children:
+    - CHART-cart
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    meta:
+      background: BACKGROUND_TRANSPARENT
+metadata:
+  color_scheme: supersetColors
+  label_colors:
+    unknown: '#9E9E9E'
+    clothing: '#1FA8C9'
+    kitchen: '#454E7C'
+    beauty: '#5AC189'
+    home: '#FF7F44'
+    sports: '#E04355'
+    automotive: '#FCC700'
+    electronics: '#A868B7'
+    toys: '#3CCCCB'
+  refresh_frequency: 0
+  expanded_slices: {}
+  timed_refresh_immune_slices: []
+  native_filter_configuration: []
+  shared_label_colors: []
+  map_label_colors: {}
+  color_scheme_domain: []
+  cross_filters_enabled: true
+theme_uuid: null
+version: 1.0.0

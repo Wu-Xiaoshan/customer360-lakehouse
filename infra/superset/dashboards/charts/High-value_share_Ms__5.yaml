@@ -1,0 +1,20 @@
+slice_name: High-value share (Ms = 5)
+description: Share of customers with the top monetary score; 20% by construction.
+certified_by: null
+certification_details: null
+viz_type: big_number_total
+params:
+  metric:
+    expressionType: SQL
+    sqlExpression: 1.0 * count_if(ms = 5) / count(*)
+    label: High-value share
+  adhoc_filters: []
+  y_axis_format: .1%
+  header_font_size: 0.4
+  viz_type: big_number_total
+  datasource: 2__table
+query_context: null
+cache_timeout: null
+uuid: f57388ea-e9ba-4a0b-9b45-d413f893888f
+version: 1.0.0
+dataset_uuid: 6088df52-dc2f-4927-b781-52a6cba98025

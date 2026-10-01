@@ -1,0 +1,44 @@
+slice_name: Drop-off per step
+description: Share of the previous step's customers who did not reach this step.
+certified_by: null
+certification_details: null
+viz_type: echarts_timeseries_bar
+params:
+  x_axis: step_label
+  metrics:
+  - expressionType: SQL
+    sqlExpression: MAX(drop_pct)
+    label: Drop-off %
+  groupby: []
+  adhoc_filters:
+  - expressionType: SIMPLE
+    subject: step_no
+    operator: '>'
+    clause: WHERE
+    filterOptionName: 260141d95aad48e29cf61277ee2403f9
+    comparator: 1
+  xAxisLabelRotation: 0
+  orientation: vertical
+  stack: null
+  show_value: true
+  show_legend: false
+  legendOrientation: top
+  row_limit: 1000
+  y_axis_format: .1f
+  truncate_metric: true
+  rich_tooltip: true
+  color_scheme: supersetColors
+  x_axis_title: ''
+  x_axis_title_margin: 15
+  y_axis_title: ''
+  y_axis_title_margin: 15
+  y_axis_title_position: Left
+  x_axis_sort: step_label
+  x_axis_sort_asc: true
+  viz_type: echarts_timeseries_bar
+  datasource: 11__table
+query_context: null
+cache_timeout: null
+uuid: af84da21-9986-45c7-b623-2d8fa208833b
+version: 1.0.0
+dataset_uuid: d8cd6968-f3e7-4046-9c12-611bcdcfd2ae

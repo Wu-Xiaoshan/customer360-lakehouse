@@ -1,0 +1,38 @@
+slice_name: Ingestion time
+description: Seconds to ingest each source into Bronze.
+certified_by: null
+certification_details: null
+viz_type: echarts_timeseries_bar
+params:
+  x_axis: source
+  metrics:
+  - expressionType: SQL
+    sqlExpression: SUM(seconds)
+    label: Seconds
+  groupby: []
+  adhoc_filters: []
+  xAxisLabelRotation: 0
+  orientation: vertical
+  stack: null
+  show_value: true
+  show_legend: false
+  legendOrientation: top
+  row_limit: 1000
+  y_axis_format: .1f
+  truncate_metric: true
+  rich_tooltip: true
+  color_scheme: supersetColors
+  x_axis_title: ''
+  x_axis_title_margin: 15
+  y_axis_title: ''
+  y_axis_title_margin: 15
+  y_axis_title_position: Left
+  x_axis_sort: Seconds
+  x_axis_sort_asc: false
+  viz_type: echarts_timeseries_bar
+  datasource: 14__table
+query_context: null
+cache_timeout: null
+uuid: 9db0ee67-d582-46f7-97cf-c49d526a55dc
+version: 1.0.0
+dataset_uuid: 569ffcc2-7b4d-4d54-97f0-e65caa4b0527

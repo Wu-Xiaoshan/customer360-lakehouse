@@ -1,0 +1,29 @@
+slice_name: Conversion funnel
+description: null
+certified_by: null
+certification_details: null
+viz_type: funnel
+params:
+  groupby:
+  - step_label
+  metric:
+    expressionType: SQL
+    sqlExpression: MAX(customers)
+    label: Customers
+  adhoc_filters: []
+  row_limit: 10
+  sort_by_metric: true
+  percent_calculation_type: first_step
+  show_labels: true
+  label_type: 5
+  tooltip_label_type: 5
+  number_format: ',d'
+  show_legend: false
+  color_scheme: supersetColors
+  viz_type: funnel
+  datasource: 6__table
+query_context: null
+cache_timeout: null
+uuid: e85c3347-aaa6-412f-a7f4-88d3775ecc1f
+version: 1.0.0
+dataset_uuid: 46e867ff-480d-4bb3-9d1a-daafb5a65623

@@ -1,0 +1,38 @@
+slice_name: Average frequency per segment
+description: null
+certified_by: null
+certification_details: null
+viz_type: echarts_timeseries_bar
+params:
+  x_axis: segment
+  metrics:
+  - expressionType: SQL
+    sqlExpression: AVG(frequency)
+    label: Average orders
+  groupby: []
+  adhoc_filters: []
+  xAxisLabelRotation: 30
+  orientation: vertical
+  stack: null
+  show_value: true
+  show_legend: false
+  legendOrientation: top
+  row_limit: 1000
+  y_axis_format: .2f
+  truncate_metric: true
+  rich_tooltip: true
+  color_scheme: supersetColors
+  x_axis_title: ''
+  x_axis_title_margin: 15
+  y_axis_title: ''
+  y_axis_title_margin: 15
+  y_axis_title_position: Left
+  x_axis_sort: Average orders
+  x_axis_sort_asc: false
+  viz_type: echarts_timeseries_bar
+  datasource: 2__table
+query_context: null
+cache_timeout: null
+uuid: 2f2bbb40-9bb2-4dad-82ea-d1ed89d0186f
+version: 1.0.0
+dataset_uuid: 6088df52-dc2f-4927-b781-52a6cba98025

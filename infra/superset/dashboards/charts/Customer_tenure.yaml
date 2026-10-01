@@ -1,0 +1,38 @@
+slice_name: Customer tenure
+description: Customers by whole years between signup and the reference date.
+certified_by: null
+certification_details: null
+viz_type: echarts_timeseries_bar
+params:
+  x_axis: tenure_years
+  metrics:
+  - expressionType: SQL
+    sqlExpression: COUNT(*)
+    label: Customers
+  groupby: []
+  adhoc_filters: []
+  xAxisLabelRotation: 0
+  orientation: vertical
+  stack: null
+  show_value: true
+  show_legend: false
+  legendOrientation: top
+  row_limit: 1000
+  y_axis_format: ',d'
+  truncate_metric: true
+  rich_tooltip: true
+  color_scheme: supersetColors
+  x_axis_title: Full years since signup
+  x_axis_title_margin: 30
+  y_axis_title: ''
+  y_axis_title_margin: 15
+  y_axis_title_position: Left
+  x_axis_sort: tenure_years
+  x_axis_sort_asc: true
+  viz_type: echarts_timeseries_bar
+  datasource: 1__table
+query_context: null
+cache_timeout: null
+uuid: a417998d-6bb8-46ae-87ad-6c307e2d4696
+version: 1.0.0
+dataset_uuid: 5ecc63cc-463d-457d-868f-c5fe378210ec

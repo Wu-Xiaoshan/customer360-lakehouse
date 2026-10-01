@@ -1,0 +1,38 @@
+slice_name: Rejection rate per source
+description: quarantined_rows / source_rows per source.
+certified_by: null
+certification_details: null
+viz_type: echarts_timeseries_bar
+params:
+  x_axis: source
+  metrics:
+  - expressionType: SQL
+    sqlExpression: 100.0 * MAX(quarantined_rows) / MAX(source_rows)
+    label: Rejected %
+  groupby: []
+  adhoc_filters: []
+  xAxisLabelRotation: 0
+  orientation: vertical
+  stack: null
+  show_value: true
+  show_legend: false
+  legendOrientation: top
+  row_limit: 1000
+  y_axis_format: .1f
+  truncate_metric: true
+  rich_tooltip: true
+  color_scheme: supersetColors
+  x_axis_title: ''
+  x_axis_title_margin: 15
+  y_axis_title: ''
+  y_axis_title_margin: 15
+  y_axis_title_position: Left
+  x_axis_sort: Rejected %
+  x_axis_sort_asc: false
+  viz_type: echarts_timeseries_bar
+  datasource: 12__table
+query_context: null
+cache_timeout: null
+uuid: 259fe3f9-9ba6-4cfc-a96c-677c5181b9d2
+version: 1.0.0
+dataset_uuid: 96ce2a71-6446-48e3-826a-8f53aaeca6a1

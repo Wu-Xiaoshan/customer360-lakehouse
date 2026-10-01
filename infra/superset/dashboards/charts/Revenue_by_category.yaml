@@ -1,0 +1,42 @@
+slice_name: Revenue by category
+description: Successful orders from silver.orders joined to silver.product; no Gold
+  table covers revenue.
+certified_by: null
+certification_details: null
+viz_type: echarts_timeseries_bar
+params:
+  x_axis: category
+  metrics:
+  - expressionType: SQL
+    sqlExpression: SUM(order_amount)
+    label: Revenue
+  groupby:
+  - expressionType: SQL
+    sqlExpression: category
+    label: category_series
+  adhoc_filters: []
+  xAxisLabelRotation: 30
+  orientation: vertical
+  stack: Stack
+  show_value: true
+  show_legend: false
+  legendOrientation: top
+  row_limit: 1000
+  y_axis_format: SMART_NUMBER
+  truncate_metric: true
+  rich_tooltip: true
+  color_scheme: supersetColors
+  x_axis_title: ''
+  x_axis_title_margin: 15
+  y_axis_title: ''
+  y_axis_title_margin: 15
+  y_axis_title_position: Left
+  x_axis_sort: sum
+  x_axis_sort_asc: false
+  viz_type: echarts_timeseries_bar
+  datasource: 9__table
+query_context: null
+cache_timeout: null
+uuid: f0f3dddd-3753-4bc8-bb51-074c0602aa8b
+version: 1.0.0
+dataset_uuid: 038eac98-521b-42ea-997c-e1c446e2f912

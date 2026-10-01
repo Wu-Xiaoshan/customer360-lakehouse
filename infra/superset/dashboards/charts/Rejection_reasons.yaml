@@ -1,0 +1,45 @@
+slice_name: Rejection reasons
+description: null
+certified_by: null
+certification_details: null
+viz_type: echarts_timeseries_bar
+params:
+  x_axis: source
+  metrics:
+  - expressionType: SQL
+    sqlExpression: SUM(rows)
+    label: Rows
+  groupby:
+  - reason
+  adhoc_filters:
+  - expressionType: SIMPLE
+    subject: severity
+    operator: ==
+    clause: WHERE
+    filterOptionName: cbeb315abddf431eb6eedb4440b61902
+    comparator: reject
+  xAxisLabelRotation: 0
+  orientation: vertical
+  stack: Stack
+  show_value: true
+  show_legend: true
+  legendOrientation: top
+  row_limit: 1000
+  y_axis_format: ',d'
+  truncate_metric: true
+  rich_tooltip: true
+  color_scheme: supersetColors
+  x_axis_title: ''
+  x_axis_title_margin: 15
+  y_axis_title: ''
+  y_axis_title_margin: 15
+  y_axis_title_position: Left
+  x_axis_sort: sum
+  x_axis_sort_asc: false
+  viz_type: echarts_timeseries_bar
+  datasource: 12__table
+query_context: null
+cache_timeout: null
+uuid: b6812c40-a05f-4e75-b24d-7049ac8286b0
+version: 1.0.0
+dataset_uuid: 96ce2a71-6446-48e3-826a-8f53aaeca6a1

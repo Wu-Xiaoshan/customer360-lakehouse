@@ -1,0 +1,38 @@
+slice_name: Countries (top 15)
+description: null
+certified_by: null
+certification_details: null
+viz_type: echarts_timeseries_bar
+params:
+  x_axis: country
+  metrics:
+  - expressionType: SQL
+    sqlExpression: COUNT(*)
+    label: Customers
+  groupby: []
+  adhoc_filters: []
+  xAxisLabelRotation: 0
+  orientation: horizontal
+  stack: null
+  show_value: true
+  show_legend: false
+  legendOrientation: top
+  row_limit: 15
+  y_axis_format: ',d'
+  truncate_metric: true
+  rich_tooltip: true
+  color_scheme: supersetColors
+  x_axis_title: ''
+  x_axis_title_margin: 15
+  y_axis_title: ''
+  y_axis_title_margin: 15
+  y_axis_title_position: Left
+  x_axis_sort: Customers
+  x_axis_sort_asc: true
+  viz_type: echarts_timeseries_bar
+  datasource: 1__table
+query_context: null
+cache_timeout: null
+uuid: 6a674797-064a-4977-a286-1aae2c3cd7a3
+version: 1.0.0
+dataset_uuid: 5ecc63cc-463d-457d-868f-c5fe378210ec
