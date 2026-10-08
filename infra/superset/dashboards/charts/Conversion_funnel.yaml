@@ -21,7 +21,8 @@ params:
   show_legend: false
   color_scheme: supersetColors
   viz_type: funnel
-  datasource: 6__table
+  datasource: 1__table
+  annotation_layers: []
 query_context: null
 cache_timeout: null
 uuid: e85c3347-aaa6-412f-a7f4-88d3775ecc1f

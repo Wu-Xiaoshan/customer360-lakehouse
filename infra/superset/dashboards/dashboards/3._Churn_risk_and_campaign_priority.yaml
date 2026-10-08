@@ -20,6 +20,7 @@ position:
     - ROW-intro
     - ROW-0
     - ROW-1
+    - ROW-churn-model
     parents:
     - ROOT_ID
   HEADER_ID:
@@ -47,10 +48,13 @@ position:
     - ROW-intro
     meta:
       width: 12
-      height: 10
+      height: 12
       code: '**Who to contact first.** The risk score adds three signals, 0 to 2 points
         each: time since the last order, refunded or failed orders, and negative-sentiment
-        tickets. The total, 0 to 6, maps to four levels, shown with their score range.'
+        tickets. The total, 0 to 6, maps to four levels, shown with their score range.
+        The bottom row compares the risk score with a churn model trained on the same
+        history: on held-out customers both are close to chance (AUC 0.5), so the
+        levels describe customers rather than predict who will leave.'
   CHART-risk:
     type: CHART
     id: CHART-risk
@@ -62,7 +66,7 @@ position:
     meta:
       width: 4
       height: 50
-      chartId: 14
+      chartId: 29
       sliceName: Risk level distribution
       uuid: 1d7d39fe-ecf8-4aa2-9649-973a166626a6
   CHART-segrisk:
@@ -76,7 +80,7 @@ position:
     meta:
       width: 4
       height: 50
-      chartId: 15
+      chartId: 30
       sliceName: Segment by risk
       uuid: 37426f9a-458e-4c99-a804-82e6c16cbe62
   CHART-drivers:
@@ -90,7 +94,7 @@ position:
     meta:
       width: 4
       height: 50
-      chartId: 16
+      chartId: 33
       sliceName: What drives the score
       uuid: 074b4401-e609-490f-baf0-aadfe5962edd
   ROW-0:
@@ -116,7 +120,7 @@ position:
     meta:
       width: 4
       height: 60
-      chartId: 17
+      chartId: 24
       sliceName: Priority distribution
       uuid: ca9a70f3-15c6-450d-9e08-075e0fa83942
   CHART-highprio:
@@ -144,6 +148,45 @@ position:
     - GRID_ID
     meta:
       background: BACKGROUND_TRANSPARENT
+  ROW-churn-model:
+    type: ROW
+    id: ROW-churn-model
+    children:
+    - CHART-churn-0
+    - CHART-churn-1
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    meta:
+      background: BACKGROUND_TRANSPARENT
+  CHART-churn-0:
+    type: CHART
+    id: CHART-churn-0
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - ROW-churn-model
+    meta:
+      width: 6
+      height: 50
+      chartId: 34
+      sliceName: Model versus rule (AUC)
+      uuid: cd4e9bb7-0640-4295-8e90-cc82669cd18a
+  CHART-churn-1:
+    type: CHART
+    id: CHART-churn-1
+    children: []
+    parents:
+    - ROOT_ID
+    - GRID_ID
+    - ROW-churn-model
+    meta:
+      width: 6
+      height: 50
+      chartId: 35
+      sliceName: Predicted churn by risk level
+      uuid: 6363e37c-84ad-46ac-9258-308aed0bb6cc
 metadata:
   color_scheme: supersetColors
   label_colors:

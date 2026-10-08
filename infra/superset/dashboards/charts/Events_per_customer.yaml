@@ -17,7 +17,8 @@ params:
   show_legend: false
   color_scheme: supersetColors
   viz_type: histogram_v2
-  datasource: 1__table
+  datasource: 5__table
+  annotation_layers: []
 query_context: null
 cache_timeout: null
 uuid: af44347e-434b-4ad0-abed-93090b7ff4cb

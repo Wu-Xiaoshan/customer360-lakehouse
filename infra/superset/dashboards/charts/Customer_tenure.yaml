@@ -30,7 +30,8 @@ params:
   x_axis_sort: tenure_years
   x_axis_sort_asc: true
   viz_type: echarts_timeseries_bar
-  datasource: 1__table
+  datasource: 5__table
+  annotation_layers: []
 query_context: null
 cache_timeout: null
 uuid: a417998d-6bb8-46ae-87ad-6c307e2d4696

@@ -1,2 +1,3 @@
 pyspark==3.5.5
+numpy==1.26.4     # used by pyspark.ml; same version as the container
 # Iceberg runtime is provided by the spark-iceberg image

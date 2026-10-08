@@ -34,7 +34,8 @@ params:
   x_axis_sort: risk_band
   x_axis_sort_asc: true
   viz_type: echarts_timeseries_bar
-  datasource: 3__table
+  datasource: 7__table
+  annotation_layers: []
 query_context: null
 cache_timeout: null
 uuid: 074b4401-e609-490f-baf0-aadfe5962edd

@@ -30,7 +30,8 @@ params:
   x_axis_sort: Rejected %
   x_axis_sort_asc: false
   viz_type: echarts_timeseries_bar
-  datasource: 12__table
+  datasource: 9__table
+  annotation_layers: []
 query_context: null
 cache_timeout: null
 uuid: 259fe3f9-9ba6-4cfc-a96c-677c5181b9d2

@@ -13,6 +13,7 @@ running on Docker.
   -> Bronze   raw landing + audit columns + ingestion metadata
   -> Silver   cleaning + DQ validation + quarantine
   -> Gold     Customer 360 master table + RFM / risk / penetration / funnel metrics
+  -> ML       churn classifier (Spark MLlib), evaluated against the rule-based risk score
   -> Superset dashboards, querying Iceberg through Trino
 ```
 
@@ -99,12 +100,14 @@ specified in `docs/dashboard_blueprint.md`.
 
 ### Individual layers
 
-Silver reads Bronze tables and Gold reads Silver tables, so the order is fixed.
+Silver reads Bronze tables, Gold and the churn model read Silver tables, so the order
+is fixed.
 
 ```bash
 python3 src/bronze_ingest.py    # CSV      -> bronze.* + metadata.ingestion
 python3 src/silver_clean.py     # bronze.* -> silver.* + quarantine.* + metadata.{dq_summary,integrity}
 python3 src/gold_metrics.py     # silver.* -> gold.*
+python3 src/ml/churn_model.py   # silver.* -> gold.churn_scores + metadata.ml_metrics
 ```
 
 ## Gold tables
@@ -118,9 +121,27 @@ python3 src/gold_metrics.py     # silver.* -> gold.*
 | `category_penetration` | buyers per category; orders whose product was quarantined count as `unknown` | 4 |
 | `behavior_funnel` | nested funnel over the 90-day window, with explicit `step_no` | 5 |
 | `cart_abandoners` | added to cart in the 90-day window without an order in it | 5 |
+| `churn_scores` | churn probability from the classifier, per customer with a successful order | 3 |
 
 `customer_360` has 48,200 rows, one per customer, and carries `full_name_masked` only,
 with no email, phone or address. Customers with no orders are labelled `No Purchase`.
+
+## Churn model
+
+`src/ml/churn_model.py` learns from orders, tickets and profile data before
+2025-09-02 whether a customer orders again by 2025-12-01, and evaluates the
+rule-based risk score of `customer_risk` on the same held-out customers.
+`metadata.ml_metrics` records the result of every run.
+
+| Score, 8,703 held-out customers | AUC-ROC |
+|---|---|
+| rule-based risk score | 0.496 |
+| logistic regression | 0.512 |
+| random forest | 0.518 |
+
+None of them predicts churn on this dataset: 70.5% of customers churn, almost
+regardless of how often or how recently they ordered before. See design document §9
+step 6.
 
 ## Data quality
 
@@ -160,6 +181,7 @@ src/
   bronze_ingest.py     Bronze: ingestion + audit columns
   silver_clean.py      Silver: cleaning, golden record, quarantine, run metadata
   gold_metrics.py      Gold: seven analytics tables
+  ml/churn_model.py    churn classifier: features, label, evaluation, scores
   dq/framework.py      rules, warnings, deduplication, summaries
 docs/
   design_document.md   design, data findings, implementation plan
@@ -174,7 +196,7 @@ infra/
 data/                  source CSVs, not version-controlled
 sql/                   analytical queries
 notebooks/             exploration
-run_pipeline.sh        Bronze -> Silver -> Gold
+run_pipeline.sh        Bronze -> Silver -> Gold -> churn model
 ```
 
 ## Attribution

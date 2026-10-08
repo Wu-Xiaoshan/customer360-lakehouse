@@ -1,13 +1,13 @@
-===== mode=iceberg  data=/home/iceberg/data  run=run_20260930T224132Z  as_of=2025-12-01 =====
-===== [1/3] Bronze ingestion =====
-[Bronze] orders       rows=300000   14.26s  -> demo.bronze.orders
-[Bronze] clickstream  rows=500000    7.45s  -> demo.bronze.clickstream
-[Bronze] crm          rows= 50000    3.44s  -> demo.bronze.crm
-[Bronze] tickets      rows= 30000    1.17s  -> demo.bronze.tickets
-[Bronze] product      rows=   500    0.72s  -> demo.bronze.product
+===== mode=iceberg  data=/home/iceberg/data  run=run_20261008T203554Z  as_of=2025-12-01 =====
+===== [1/4] Bronze ingestion =====
+[Bronze] orders       rows=300000   11.63s  -> demo.bronze.orders
+[Bronze] clickstream  rows=500000    8.34s  -> demo.bronze.clickstream
+[Bronze] crm          rows= 50000    2.28s  -> demo.bronze.crm
+[Bronze] tickets      rows= 30000    1.61s  -> demo.bronze.tickets
+[Bronze] product      rows=   500    0.78s  -> demo.bronze.product
 [Bronze] ingestion complete, 880500 rows
 [Bronze] ingestion metadata -> demo.metadata.ingestion
-===== [2/3] Silver cleaning and validation =====
+===== [2/4] Silver cleaning and validation =====
 [DQ][crm] total=50000 valid=48200 quarantined=1800 (3.6% rejected)
 +--------+---------------------+----+
 |severity|reason               |rows|
@@ -16,7 +16,6 @@
 |warn    |corrupted_last_name  |1491|
 |warn    |corrupted_first_name |1464|
 +--------+---------------------+----+
-
 [Silver] crm          -> demo.silver.crm | demo.quarantine.crm
 [Silver] customer_device -> demo.silver.customer_device
 [DQ][product] total=500 valid=410 quarantined=90 (18.0% rejected)
@@ -27,7 +26,6 @@
 |reject  |missing_category |30  |
 |reject  |nan_price        |26  |
 +--------+-----------------+----+
-
 [Silver] product      -> demo.silver.product | demo.quarantine.product
 [DQ][orders] total=300000 valid=182946 quarantined=117054 (39.0% rejected)
 +--------+------------------------+-----+
@@ -41,7 +39,6 @@
 |warn    |order_before_signup     |14922|
 |warn    |unknown_payment_method  |13016|
 +--------+------------------------+-----+
-
 [Silver] orders       -> demo.silver.orders | demo.quarantine.orders
 [DQ][tickets] total=30000 valid=20976 quarantined=9024 (30.1% rejected)
 +--------+------------------------+----+
@@ -54,7 +51,6 @@
 |warn    |resolved_after_as_of    |1414|
 |warn    |resolution_time_mismatch|1310|
 +--------+------------------------+----+
-
 [Silver] tickets      -> demo.silver.tickets | demo.quarantine.tickets
 [DQ][clickstream] total=500000 valid=305114 quarantined=194886 (39.0% rejected)
 +--------+----------------------+------+
@@ -64,7 +60,6 @@
 |reject  |bad_event_time        |40171 |
 |reject  |after_as_of_event_time|23189 |
 +--------+----------------------+------+
-
 [Silver] clickstream  -> demo.silver.clickstream | demo.quarantine.clickstream
 [Silver] DQ summary -> demo.metadata.dq_summary
 +---------------------------------------+----------+-----------------+-----------------+
@@ -76,10 +71,9 @@
 |clickstream.customer_id -> crm         |305114    |0                |0                |
 |clickstream.device_id -> crm.device_ids|305114    |305114           |305114           |
 +---------------------------------------+----------+-----------------+-----------------+
-
 [Silver] integrity -> demo.metadata.integrity
 [Silver] cleaning complete
-===== [3/3] Gold metrics =====
+===== [3/4] Gold metrics =====
 [Gold] as_of=2025-12-01  behaviour window=90 days
 == RFM segments == -> demo.gold.customer_rfm
 +-----------+-----+
@@ -91,7 +85,6 @@
 |     Others| 8167|
 |    At Risk| 6386|
 +-----------+-----+
-
 == Churn risk == -> demo.gold.customer_risk
 +----------+-----+
 |risk_level|count|
@@ -101,7 +94,6 @@
 |       Low| 4759|
 |  Very Low| 1740|
 +----------+-----+
-
 == Campaign priority == -> demo.gold.campaign_priority
 +--------+-----+
 |priority|count|
@@ -110,7 +102,6 @@
 |    HIGH|14487|
 |     LOW| 1681|
 +--------+-----+
-
 == Category penetration == -> demo.gold.category_penetration
 +-----------+---------+---------------+
 |   category|customers|penetration_pct|
@@ -125,7 +116,6 @@
 |electronics|    11004|           24.5|
 |       toys|    10324|           23.0|
 +-----------+---------+---------------+
-
 == Behaviour funnel (90 days) == -> demo.gold.behavior_funnel
 +-------+-----------+---------+
 |step_no|       step|customers|
@@ -135,7 +125,6 @@
 |      3|add_to_cart|    17568|
 |      4|   purchase|     5320|
 +-------+-----------+---------+
-
 == Cart abandoners (90 days) == -> demo.gold.cart_abandoners  20652 customers
 == Customer 360 == -> demo.gold.customer_360  48200 rows, 48200 customers
 -RECORD 0--------------------------------------------------
@@ -187,6 +176,26 @@
  risk_level         | Medium                               
  priority           | MEDIUM                               
 only showing top 2 rows
-
 [Gold] metrics complete
+===== [4/4] Churn model =====
+[ML] cutoff=2025-09-02  as_of=2025-12-01  population=43683  churned=30787 (70.5%)  train=34980  test=8703  test churn rate=70.1%
+[ML] logistic_regression  cv auc=0.5155  regParam=0.1
+     coefficients: frequency -0.030, distinct_categories -0.016, gender_vec_O -0.015, source_vec_web +0.014, tickets_total -0.010, orders_180d -0.009, monetary -0.009, first_order_days -0.008
+[ML] random_forest        cv auc=0.5185  numTrees=100, maxDepth=5
+     importance: distinct_categories +0.151, frequency +0.135, monetary +0.123, recency_days +0.078, tenure_days +0.076, avg_order_value +0.076, first_order_days +0.074, orders_180d +0.061
+== Model evaluation on 8703 held-out customers == -> demo.metadata.ml_metrics
++-------------------+-------+------+------+---------------+
+|model              |auc_roc|auc_pr|cv_auc|used_for_scores|
++-------------------+-------+------+------+---------------+
+|rule_baseline      |0.4964 |0.7015|NULL  |false          |
+|logistic_regression|0.5124 |0.7061|0.5155|false          |
+|random_forest      |0.5182 |0.7046|0.5185|true           |
++-------------------+-------+------+------+---------------+
+== Churn scores (random_forest) == -> demo.gold.churn_scores  44937 customers
++------+------+------+
+|  mean|   min|   max|
++------+------+------+
+|0.7024|0.4499|0.7373|
++------+------+------+
+[ML] churn model complete
 ===== Pipeline complete =====

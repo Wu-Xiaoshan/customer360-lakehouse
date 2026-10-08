@@ -64,7 +64,7 @@ position:
     meta:
       width: 6
       height: 50
-      chartId: 24
+      chartId: 6
       sliceName: Conversion funnel
       uuid: e85c3347-aaa6-412f-a7f4-88d3775ecc1f
   CHART-drop:
@@ -78,7 +78,7 @@ position:
     meta:
       width: 6
       height: 50
-      chartId: 25
+      chartId: 14
       sliceName: Drop-off per step
       uuid: af84da21-9986-45c7-b623-2d8fa208833b
   ROW-0:
@@ -103,7 +103,7 @@ position:
     meta:
       width: 8
       height: 50
-      chartId: 26
+      chartId: 2
       sliceName: Activity by hour
       uuid: aa80f62d-2f3d-4ef8-804a-045767041a80
   CHART-events:
@@ -117,7 +117,7 @@ position:
     meta:
       width: 4
       height: 50
-      chartId: 27
+      chartId: 15
       sliceName: Events per customer
       uuid: af44347e-434b-4ad0-abed-93090b7ff4cb
   ROW-1:
@@ -142,7 +142,7 @@ position:
     meta:
       width: 12
       height: 50
-      chartId: 28
+      chartId: 5
       sliceName: Cart abandoners
       uuid: 54421324-e93b-49f4-82ed-7a75183bb9b2
   ROW-2:

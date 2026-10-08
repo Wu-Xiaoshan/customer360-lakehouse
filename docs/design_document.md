@@ -1,7 +1,7 @@
 # Design Document — Customer 360 Lakehouse Platform
 
 > Final Project · ID2221 Data-Intensive Computing
-> **Status: implementation in progress.** The pipeline runs end to end on Iceberg and produces a Customer 360 table with one row per customer, with identical results on local Parquet. Trino serves it read-only, and six Superset dashboards show it. §9 step 6 (optional) and step 7 are next. The plan and the division of work are in §9, the numbers from each run are in `run_log.md`, and the open items are in §10.
+> **Status: implementation in progress.** The pipeline runs end to end on Iceberg and produces a Customer 360 table with one row per customer, with identical results on local Parquet. Trino serves it read-only, six Superset dashboards show it, and a churn classifier is evaluated against the rule-based risk score. §9 step 7 is next. The plan and the division of work are in §9, the numbers from each run are in `run_log.md`, and the open items are in §10.
 
 ---
 
@@ -171,18 +171,20 @@ Email, phone and address never reach this table. Customers without orders are ke
 **Analytical tables.**
 
 - **RFM segmentation**: recency, frequency and monetary per customer over successful orders, each scored 1 to 5, with the combination of R and F mapped to five segments. Customers with the same value always get the same score. Recency and monetary are quintiles from `percent_rank`, which gives tied values one rank. Frequency is the order count capped at 5: it takes only 15 values, mostly 1 to 4, so any split into five equal counts would give customers with the same number of orders different scores, while the counts 1, 2, 3, 4 and 5+ already hold 18.5, 25.5, 23.2, 16.2 and 16.6% of buyers.
-- **Churn risk**: 0 to 2 points each for time since the last order, refunded or failed orders, and negative tickets; the sum maps to four levels.
+- **Churn risk**: 0 to 2 points each for time since the last order, refunded or failed orders, and negative tickets; the sum maps to four levels. On this dataset the score does not predict churn (§9 step 6).
 - **Campaign priority**: monetary quintile combined with the risk score.
 - **Category penetration**: distinct buyers per category, with orders whose product was quarantined counted under `unknown`.
 - **Conversion funnel**: page_view → search → add_to_cart → purchase inside the 90-day window. Each step intersects the previous step's customer set, so counts always decrease and the gap between steps is the loss.
 - **Cart abandoners**: customers who added to cart in the window and placed no successful order in it.
 
-### 4.4 Optional — Predictive component (ML)
-*Include only if time permits; it is a bonus, not required.*
-- **Task:** binary classification — predict whether a customer will churn.
-- **Label:** the data has none. With `AS_OF_DATE` = 2025-12-01 and a 90-day horizon, the cutoff is 2025-09-02; a customer is churned if they place no order between the cutoff and the reference date.
-- **Features:** only data dated before the cutoff: orders, tickets and CRM. The clickstream starts on the cutoff date, so it cannot contribute features.
-- **Method:** Spark MLlib `Pipeline` — `VectorAssembler` → `StringIndexer`/`OneHotEncoder` → `StandardScaler` → classifier (e.g., `LogisticRegression` or `RandomForestClassifier`) → `Evaluator` (AUC).
+### 4.4 Predictive component (ML)
+Optional in the brief; implemented in `src/ml/churn_model.py`, stage 4 of `run_pipeline.sh`.
+- **Task:** binary classification — will a customer who has bought before place no order in the next 90 days.
+- **Label:** the data has none. With `AS_OF_DATE` = 2025-12-01 and a 90-day horizon, the cutoff is 2025-09-02. The population is every customer with a successful order before the cutoff; a customer is churned if they place no successful order from the cutoff to the reference date.
+- **Features:** computed at a reference date from data dated before it only: recency, frequency, monetary, average order value, orders in the last 90 and 180 days, days since the first order, distinct categories, refunded or failed orders, tickets, negative tickets, open tickets, tenure, gender and acquisition channel. The clickstream starts on the cutoff date, so it cannot contribute features. The same function builds the training features at the cutoff and the scoring features after the reference date, and the program stops if an order on or after the cutoff reaches the training features.
+- **Method:** Spark MLlib `Pipeline` — `StringIndexer` → `OneHotEncoder` → `VectorAssembler` → `StandardScaler` → `LogisticRegression` or `RandomForestClassifier`, each tuned by 3-fold cross-validation on AUC. One customer in five, chosen by a hash of `customer_id`, is held out. The Gold risk score, recomputed at the cutoff, is evaluated on the same customers as a baseline.
+- **Reproducibility:** the test set and the folds come from hashes of `customer_id`, the data is partitioned and sorted by `customer_id` before training, and every seed is fixed, so the results do not depend on how the input is partitioned.
+- **Outputs:** `gold.churn_scores`, the probability from the model with the better cross-validated AUC for every customer with a successful order; `metadata.ml_metrics`, AUC-ROC and AUC-PR of the two models and the baseline, appended per run.
 
 ### 4.5 Serving / presentation
 - Analytical results exposed via Spark SQL and Trino.
@@ -245,7 +247,7 @@ Resulting container footprint: MinIO + `mc` (bucket setup) + Spark/Jupyter + RES
 customer360-lakehouse/          # lives at ~/customer360-lakehouse inside WSL
 ├── README.md                 # how to run (satisfies deliverable)
 ├── requirements.txt          # pyspark==3.5.5, matching the container
-├── run_pipeline.sh           # Bronze → Silver → Gold under one RUN_ID
+├── run_pipeline.sh           # Bronze → Silver → Gold → churn model under one RUN_ID
 ├── .gitignore                # ignores data/*.csv, warehouse/, .env
 ├── .env.example              # recognised variables, including AS_OF_DATE
 ├── docs/
@@ -265,7 +267,7 @@ customer360-lakehouse/          # lives at ~/customer360-lakehouse inside WSL
 │   ├── silver_clean.py       # four-level cleaning, golden record, quarantine, run metadata
 │   ├── gold_metrics.py       # Customer 360 + 6 analytical tables
 │   ├── dq/framework.py       # rules, warnings, dedup, summaries
-│   └── ml/ (optional)        # MLlib churn pipeline
+│   └── ml/churn_model.py     # MLlib churn classifier, stage 4
 ├── notebooks/                # exploration, analysis, charts
 ├── sql/                      # analytical queries
 └── data/                     # ❌ CSVs gitignored (clickstream alone is 122 MB)
@@ -353,9 +355,26 @@ Drill to detail opens the `customer_360` rows behind a chart, and the Customer I
 
 Median load time over three loads, until every chart has rendered: 4.7 s for Dashboard 1, which holds the 48,200-row lookup table, and 2.5 to 3.0 s for the others.
 
-### Step 6 — Churn classifier (optional)
+### Step 6 — Churn classifier · DONE
 
-Only if Steps 1 to 5 are finished with time to spare. Label and feature window as in §4.4, reported as AUC.
+`src/ml/churn_model.py`, stage 4 of `run_pipeline.sh` (§4.4). Of the 43,683 customers with a successful order before 2025-09-02, 70.5% place none in the following 90 days. On the 8,703 held-out customers:
+
+| Score | AUC-ROC | AUC-PR |
+|---|---|---|
+| rule-based risk score, recomputed at the cutoff | 0.496 | 0.702 |
+| logistic regression | 0.512 | 0.706 |
+| random forest | 0.518 | 0.705 |
+
+The standard error of these AUCs is about 0.007. The rule-based score therefore does no better than chance, and the models only slightly better; AUC-PR is close to the 70.1% churn rate of the test set for all three.
+
+The data explains why:
+- churn hardly varies with the number of earlier orders (71.5% after one, 68.9% after five)
+- nor with the time since the last order (69.8 to 71.5%)
+- successful orders are spread evenly over time, as if each were assigned to a random customer
+
+The risk levels and campaign priorities of Dashboard 3 are therefore descriptive rather than predictive on this dataset, and the report should say so.
+
+The results are identical in local and iceberg mode, 28 of 28 tables, after two fixes found by the cross-check: money features rounded to cents, and exact AUC curves instead of Spark's binned default. Stage 4 takes about 3 minutes. Details are in Run 7 of `run_log.md`.
 
 ### Step 7 — Integration and deliverables
 
@@ -382,7 +401,6 @@ Steps 2 and 3 must happen before Steps 4 and 5, because Trino and Superset need 
 3. `[TODO]` **Examiner check** — confirm that extending the official Iceberg quickstart is acceptable and how to cite it. The modifications are already documented in the compose header and `infra/README.md`.
 4. **Sessionisation (optional)** — `session_id` cannot group events (§3.2). Sessions could be rebuilt from each customer's event times, starting a new session after 30 minutes of inactivity; this is a standard windowed Spark job and would give Dashboard 5 a real session-depth chart.
 5. **Scale test (optional)** — generate a copy of a few GB with new identifiers and measure how ingestion and cleaning scale.
-6. **Optional components** — decide on the ML classifier once Step 5 is done.
 
 ---
 

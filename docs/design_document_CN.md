@@ -1,7 +1,7 @@
 # 设计文档 — Customer 360 湖仓平台
 
 > Final Project · ID2221 Data-Intensive Computing
-> **状态：实现中。** pipeline 已在 Iceberg 上端到端运行，产出每个客户一行的 Customer 360 表，在 local Parquet 上结果完全一致；Trino 以只读方式对外提供查询，六个 Superset 面板展示结果。下一步是第 9 节的步骤 6（可选）和步骤 7。计划和分工见第 9 节，每次运行的数字见 `run_log.md`，待办见第 10 节。
+> **状态：实现中。** pipeline 已在 Iceberg 上端到端运行，产出每个客户一行的 Customer 360 表，在 local Parquet 上结果完全一致；Trino 以只读方式对外提供查询，六个 Superset 面板展示结果，并训练了流失分类器与规则化风险分对比。下一步是第 9 节的步骤 7。计划和分工见第 9 节，每次运行的数字见 `run_log.md`，待办见第 10 节。
 
 ---
 
@@ -171,18 +171,20 @@
 **分析表。**
 
 - **RFM 分群**：按成功订单计算每个客户的 recency、frequency、monetary，各打 1 到 5 分，再按 R 和 F 的组合映射到五个分群。取值相同的客户一定得到相同的分数。recency 和 monetary 用 `percent_rank` 分五档，并列的值排名相同。frequency 直接用购买次数、封顶 5：它只有 15 个取值，而且集中在 1 到 4，任何按人数五等分的做法都会让购买次数相同的客户拿到不同的分；而 1、2、3、4、5+ 次本身就分别占购买客户的 18.5%、25.5%、23.2%、16.2%、16.6%。
-- **流失风险**：距上次下单的时长、退款或失败订单、负面工单三项各 0 到 2 分，总分映射成四个等级。
+- **流失风险**：距上次下单的时长、退款或失败订单、负面工单三项各 0 到 2 分，总分映射成四个等级。在这份数据上，该分数并不能预测流失（见第 9 节步骤 6）。
 - **营销优先级**：消费金额五分位与风险分组合。
 - **品类渗透率**：每个品类的购买客户数，商品被隔离的订单计入 `unknown`。
 - **转化漏斗**：90 天窗口内 page_view → search → add_to_cart → purchase。每一步与上一步的客户集合取交集，所以人数必然递减，步间差值就是流失。
 - **加购未下单**：窗口内加过购物车、但窗口内没有成功订单的客户。
 
-### 4.4 可选 — 预测组件（ML）
-*仅在时间允许时加入；是加分项，非必需。*
-- **任务：** 二分类——预测客户是否会流失。
-- **标签：** 数据本身没有标签。参考日期为 2025-12-01、预测窗口 90 天，所以截止日期是 2025-09-02；截止日到参考日期之间没有下单的客户记为流失。
-- **特征：** 只用截止日之前的数据：订单、工单和 CRM。clickstream 恰好从截止日才开始，无法提供特征。
-- **方法：** Spark MLlib `Pipeline`——`VectorAssembler` → `StringIndexer`/`OneHotEncoder` → `StandardScaler` → 分类器（如 `LogisticRegression` 或 `RandomForestClassifier`）→ `Evaluator`（AUC）。
+### 4.4 预测组件（ML）
+作业要求中为可选项；实现在 `src/ml/churn_model.py`，是 `run_pipeline.sh` 的第 4 阶段。
+- **任务：** 二分类——买过东西的客户在接下来 90 天里会不会不再下单。
+- **标签：** 数据本身没有标签。参考日期为 2025-12-01、预测窗口 90 天，所以截止日期是 2025-09-02。人群是截止日之前至少有一笔成功订单的客户；从截止日到参考日期之间没有成功订单的记为流失。
+- **特征：** 在某个参考日计算，只用该日之前的数据：recency、frequency、monetary、平均客单价、最近 90 天和 180 天的订单数、距首单天数、购买过的品类数、退款或失败订单数、工单数、负面工单数、未解决工单数、在网时长、性别和注册渠道。clickstream 从截止日才开始，无法提供特征。训练特征（在截止日计算）和打分特征（在参考日期之后计算）由同一个函数生成；如果截止日当天或之后的订单进入了训练特征，程序直接报错退出。
+- **方法：** Spark MLlib `Pipeline`——`StringIndexer` → `OneHotEncoder` → `VectorAssembler` → `StandardScaler` → `LogisticRegression` 或 `RandomForestClassifier`，两者都在训练集上按 AUC 做 3 折交叉验证选参数。按 `customer_id` 的哈希留出五分之一客户作测试集。Gold 的风险分在截止日重新计算后，作为基线在同一批客户上评估。
+- **可复现：** 测试集和交叉验证的折都由 `customer_id` 的哈希决定，训练前按 `customer_id` 分区并排序，所有随机种子固定，因此结果与输入的分区方式无关。
+- **产出：** `gold.churn_scores`，由交叉验证 AUC 较高的模型给每个有成功订单的客户打出的流失概率；`metadata.ml_metrics`，两个模型和基线的 AUC-ROC、AUC-PR，每次运行追加一批。
 
 ### 4.5 服务/呈现
 - 分析结果通过 Spark SQL 和 Trino 对外提供。
@@ -245,7 +247,7 @@
 customer360-lakehouse/          # 位于 WSL 内的 ~/customer360-lakehouse
 ├── README.md                 # 如何运行（满足交付要求）
 ├── requirements.txt          # pyspark==3.5.5，与容器内版本一致
-├── run_pipeline.sh           # Bronze → Silver → Gold，共用一个 RUN_ID
+├── run_pipeline.sh           # Bronze → Silver → Gold → 流失模型，共用一个 RUN_ID
 ├── .gitignore                # 忽略 data/*.csv、warehouse/、.env
 ├── .env.example              # 可识别的环境变量，含 AS_OF_DATE
 ├── docs/
@@ -265,7 +267,7 @@ customer360-lakehouse/          # 位于 WSL 内的 ~/customer360-lakehouse
 │   ├── silver_clean.py       # 四层清洗、黄金记录、隔离、运行元数据
 │   ├── gold_metrics.py       # Customer 360 + 6 张分析表
 │   ├── dq/framework.py       # 规则、警告、去重、汇总
-│   └── ml/ (可选)            # MLlib 流失 pipeline
+│   └── ml/churn_model.py     # MLlib 流失分类器，第 4 阶段
 ├── notebooks/                # 探索、分析、图表
 ├── sql/                      # 分析查询
 └── data/                     # ❌ CSV 已 gitignore（仅 clickstream 就 122 MB）
@@ -353,9 +355,26 @@ Drill to detail 能打开图表背后的 `customer_360` 明细行，Customer ID 
 
 三次加载、直到所有图表渲染完成的时间中位数：面板 1 为 4.7 秒（含 48,200 行的客户查询表），其余面板 2.5 到 3.0 秒。
 
-### 步骤 6 — 流失分类器（可选）
+### 步骤 6 — 流失分类器 · 已完成
 
-只在步骤 1 到 5 都完成且还有时间时做。标签和特征窗口见 4.4，用 AUC 汇报效果。
+实现在 `src/ml/churn_model.py`，是 `run_pipeline.sh` 的第 4 阶段（见 4.4）。在 2025-09-02 之前有成功订单的 43,683 个客户中，70.5% 在之后的 90 天里没有再下单。在留出的 8,703 个客户上：
+
+| 打分 | AUC-ROC | AUC-PR |
+|---|---|---|
+| 规则化风险分（在截止日重新计算） | 0.496 | 0.702 |
+| 逻辑回归 | 0.512 | 0.706 |
+| 随机森林 | 0.518 | 0.705 |
+
+这些 AUC 的标准误约为 0.007。所以规则化风险分与随机猜测没有区别，模型也只是略好于随机；三者的 AUC-PR 都接近测试集 70.1% 的流失率。
+
+原因在数据本身：
+- 流失率几乎不随此前的订单数变化（下过 1 单的 71.5%，5 单的 68.9%）
+- 也不随距上次下单的时间变化（69.8% 到 71.5%）
+- 成功订单在时间上均匀分布，看起来像是每笔订单都随机分给了某个客户
+
+因此在这份数据上，面板 3 的风险等级和营销优先级只有描述作用，没有预测作用，报告里应如实说明。
+
+修正 cross-check 发现的两处问题之后，local 和 iceberg 两种模式的结果完全一致，28 项全部通过。两处问题是：金额特征改为精确到分；AUC 改为精确计算，而不用 Spark 默认的分箱近似。第 4 阶段耗时约 3 分钟。详见 `run_log.md` 的 Run 7。
 
 ### 步骤 7 — 整合与交付
 
@@ -382,8 +401,6 @@ Drill to detail 能打开图表背后的 `customer_360` 明细行，Customer ID 
 3. `【待确认】` **examiner 确认** — 确认「扩展官方 Iceberg quickstart」的做法可接受，以及如何注明。改动清单已经记在 compose 顶部注释和 `infra/README.md` 里。
 4. **会话重建（可选）** — `session_id` 无法归组事件（见 3.2）。可以按每个客户的事件时间重建会话：两次事件间隔超过 30 分钟就算新会话。这是一个标准的 Spark 窗口任务，能让 Dashboard 5 有一张真正的会话深度图。
 5. **扩容测试（可选）** — 用新 ID 复制出几 GB 的数据，测量摄取和清洗的扩展性。
-6. **可选组件** — ML 分类器等步骤 5 完成后再定。
-
 ---
 
 ## 11. 一页 Proposal 骨架（用于提交）

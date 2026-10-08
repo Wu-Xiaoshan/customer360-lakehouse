@@ -18,8 +18,8 @@ from lakehouse_io import read_table, write_table, ensure_namespaces, target
 from pyspark.sql import functions as F, Window
 
 
-def _as_of():
-    return F.to_date(F.lit(AS_OF_DATE))
+def _as_of(date=None):
+    return F.to_date(F.lit(date or AS_OF_DATE))
 
 
 def _quintile(order):
@@ -27,9 +27,10 @@ def _quintile(order):
     return F.least(F.lit(5), F.floor(F.percent_rank().over(Window.orderBy(order)) * 5) + 1).cast("int")
 
 
-def build_rfm(succ):
+def build_rfm(succ, as_of=None):
+    """RFM per customer; recency is measured from `as_of`, AS_OF_DATE by default."""
     rfm = succ.groupBy("customer_id").agg(
-        F.datediff(_as_of(), F.max("order_date")).alias("recency_days"),
+        F.datediff(_as_of(as_of), F.max("order_date")).alias("recency_days"),
         F.count("*").alias("frequency"),
         F.round(F.sum("order_amount"), 2).alias("monetary"))
     # R and Ms are quintiles; Fs is the order count capped at 5.

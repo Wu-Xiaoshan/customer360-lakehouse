@@ -30,7 +30,8 @@ params:
   x_axis_sort: Average orders
   x_axis_sort_asc: false
   viz_type: echarts_timeseries_bar
-  datasource: 2__table
+  datasource: 6__table
+  annotation_layers: []
 query_context: null
 cache_timeout: null
 uuid: 2f2bbb40-9bb2-4dad-82ea-d1ed89d0186f

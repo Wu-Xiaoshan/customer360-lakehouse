@@ -31,7 +31,8 @@ params:
   x_axis_sort: sum
   x_axis_sort_asc: false
   viz_type: echarts_timeseries_bar
-  datasource: 3__table
+  datasource: 7__table
+  annotation_layers: []
 query_context: null
 cache_timeout: null
 uuid: 37426f9a-458e-4c99-a804-82e6c16cbe62

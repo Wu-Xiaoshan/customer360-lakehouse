@@ -12,7 +12,8 @@ params:
   y_axis_format: ',d'
   header_font_size: 0.4
   viz_type: big_number_total
-  datasource: 1__table
+  datasource: 5__table
+  annotation_layers: []
 query_context: null
 cache_timeout: null
 uuid: e72959fb-1563-46ab-9347-cab58cc9a2bb

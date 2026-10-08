@@ -35,7 +35,8 @@ params:
   x_axis_sort: relationship
   x_axis_sort_asc: false
   viz_type: echarts_timeseries_bar
-  datasource: 13__table
+  datasource: 11__table
+  annotation_layers: []
 query_context: null
 cache_timeout: null
 uuid: 9688a431-5c9f-4129-af0a-773fb38d9663

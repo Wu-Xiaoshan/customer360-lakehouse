@@ -1,0 +1,39 @@
+slice_name: Model versus rule (AUC)
+description: 'AUC-ROC on the held-out customers: the rule-based risk score recomputed
+  at the cutoff, and the two models. 0.5 is chance.'
+certified_by: null
+certification_details: null
+viz_type: echarts_timeseries_bar
+params:
+  x_axis: model
+  metrics:
+  - expressionType: SQL
+    sqlExpression: MAX(auc_roc)
+    label: AUC-ROC
+  groupby: []
+  adhoc_filters: []
+  xAxisLabelRotation: 0
+  orientation: vertical
+  stack: null
+  show_value: true
+  show_legend: false
+  row_limit: 100
+  y_axis_format: .3f
+  y_axis_bounds:
+  - 0
+  - 1
+  truncate_metric: true
+  rich_tooltip: true
+  color_scheme: supersetColors
+  x_axis_title: ''
+  y_axis_title: ''
+  y_axis_title_position: Left
+  x_axis_sort: model
+  x_axis_sort_asc: true
+  viz_type: echarts_timeseries_bar
+  datasource: 15__table
+query_context: null
+cache_timeout: null
+uuid: cd4e9bb7-0640-4295-8e90-cc82669cd18a
+version: 1.0.0
+dataset_uuid: 42b9a750-e753-4e12-a5a3-cec7d541cf33

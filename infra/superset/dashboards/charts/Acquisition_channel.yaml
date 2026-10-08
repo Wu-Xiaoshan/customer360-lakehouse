@@ -25,7 +25,8 @@ params:
   donut: false
   show_labels_threshold: 2
   viz_type: pie
-  datasource: 1__table
+  datasource: 5__table
+  annotation_layers: []
 query_context: null
 cache_timeout: null
 uuid: cf5888f3-e3fe-4ff2-bcc5-140c2492f785

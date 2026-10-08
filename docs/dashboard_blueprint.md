@@ -47,11 +47,12 @@ read them through the `_latest` datasets below.
 §3.2), so no chart groups by them.
 
 **Datasets.** A table dataset is named after its table, for example `customer_360` in
-schema `gold`. Six SQL datasets cover what no single table does:
+schema `gold`. Eight SQL datasets cover what no single table does:
 
 | Dataset | Content |
 |---|---|
-| `metadata_dq_summary_latest`, `metadata_integrity_latest`, `metadata_ingestion_latest` | the latest batch of each metadata table |
+| `metadata_dq_summary_latest`, `metadata_integrity_latest`, `metadata_ingestion_latest`, `metadata_ml_metrics_latest` | the latest batch of each metadata table |
+| `gold_churn_scores_by_risk` | `gold.churn_scores` joined to `gold.customer_risk`, with the risk level as `risk_band` |
 | `silver_revenue_by_category` | successful orders with their product category, `unknown` where the product was quarantined |
 | `silver_clickstream_hourly` | events by weekday and hour from 2025-09-02 |
 | `gold_behavior_funnel_dropoff` | funnel steps with the drop-off from the previous step |
@@ -120,9 +121,16 @@ maps to four levels. The charts label each level with its score range (`risk_ban
 | What drives the score | bar | `gold.customer_risk` | `avg(bad_orders)` and `avg(neg_tickets)` by `risk_band` |
 | Priority distribution | bar | `gold.campaign_priority` | group by `priority` |
 | High-priority customers | table | `gold.customer_360` | `priority = 'HIGH'` ordered by `monetary`: masked name, segment, risk level, bad orders, negative tickets, spend |
+| Model versus rule (AUC) | bar | `metadata_ml_metrics_latest` | `auc_roc` per `model`: the risk score recomputed at the cutoff, logistic regression, random forest; 0.5 is chance |
+| Predicted churn by risk level | bar | `gold_churn_scores_by_risk` | `avg(churn_probability)` per `risk_band` |
 
 Run 5: risk Medium 28,462, High 9,976, Low 4,759, Very Low 1,740; priority
 MEDIUM 28,769, HIGH 14,487, LOW 1,681.
+
+Run 7: on held-out customers the risk score has an AUC of 0.496 and the churn models
+0.512 and 0.518, so on this dataset neither the score nor the models predict churn
+(design document §9 step 6). The last two charts show this; the risk levels describe
+customers but do not rank them by who will leave.
 
 **Done when** the table shows `full_name_masked` and no real names.
 

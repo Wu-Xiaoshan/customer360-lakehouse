@@ -62,7 +62,7 @@ position:
     meta:
       width: 6
       height: 50
-      chartId: 8
+      chartId: 11
       sliceName: Customers per segment
       uuid: 72133b57-7fee-4438-9cb3-496eb284cade
   CHART-hv:
@@ -76,7 +76,7 @@ position:
     meta:
       width: 3
       height: 50
-      chartId: 9
+      chartId: 19
       sliceName: High-value share (Ms = 5)
       uuid: f57388ea-e9ba-4a0b-9b45-d413f893888f
   CHART-buyers2:
@@ -90,7 +90,7 @@ position:
     meta:
       width: 3
       height: 50
-      chartId: 10
+      chartId: 12
       sliceName: Customers scored
       uuid: 55634db7-8509-4682-bb0d-eff3010912d8
   ROW-0:
@@ -116,7 +116,7 @@ position:
     meta:
       width: 4
       height: 50
-      chartId: 11
+      chartId: 4
       sliceName: Average spend per segment
       uuid: 40699c02-b251-4755-82a5-8071ea27d072
   CHART-freq:
@@ -130,7 +130,7 @@ position:
     meta:
       width: 4
       height: 50
-      chartId: 12
+      chartId: 3
       sliceName: Average frequency per segment
       uuid: 2f2bbb40-9bb2-4dad-82ea-d1ed89d0186f
   CHART-spenddist:
@@ -144,7 +144,7 @@ position:
     meta:
       width: 4
       height: 50
-      chartId: 13
+      chartId: 31
       sliceName: Spend distribution
       uuid: dbbb0f04-eb02-4f81-99a4-2128d162e091
   ROW-1:

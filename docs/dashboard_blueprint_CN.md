@@ -43,11 +43,12 @@
 clickstream 里的 `session_id` 和 `device_id` 都不是可用的关联键（见设计文档 3.2），
 所以没有任何图表按它们分组。
 
-**数据集**：直接对应表的数据集用表名命名，例如 schema `gold` 下的 `customer_360`。单张表覆盖不了的内容由六个 SQL 数据集提供：
+**数据集**：直接对应表的数据集用表名命名，例如 schema `gold` 下的 `customer_360`。单张表覆盖不了的内容由八个 SQL 数据集提供：
 
 | 数据集 | 内容 |
 |---|---|
-| `metadata_dq_summary_latest`、`metadata_integrity_latest`、`metadata_ingestion_latest` | 各元数据表的最新一批 |
+| `metadata_dq_summary_latest`、`metadata_integrity_latest`、`metadata_ingestion_latest`、`metadata_ml_metrics_latest` | 各元数据表的最新一批 |
+| `gold_churn_scores_by_risk` | `gold.churn_scores` 关联 `gold.customer_risk`，风险等级写成 `risk_band` |
 | `silver_revenue_by_category` | 成功订单及其商品品类，商品被隔离的记为 `unknown` |
 | `silver_clickstream_hourly` | 2025-09-02 起按星期和小时统计的事件数 |
 | `gold_behavior_funnel_dropoff` | 漏斗各步及其相对上一步的流失率 |
@@ -108,8 +109,12 @@ Run 5 的分群人数：Hibernating 11,615、Loyal 10,188、Champions 8,581、Ot
 | 风险分构成 | 柱状图 | `gold.customer_risk` | `avg(bad_orders)` 和 `avg(neg_tickets)` 按 `risk_band` 分组 |
 | 营销优先级分布 | 柱状图 | `gold.campaign_priority` | 按 `priority` 分组计数 |
 | 高优先级客户名单 | 表格 | `gold.customer_360` | `priority = 'HIGH'`，按 `monetary` 降序：脱敏姓名、分群、风险等级、问题订单数、负面工单数、消费金额 |
+| 模型与规则对比（AUC） | 柱状图 | `metadata_ml_metrics_latest` | 按 `model` 取 `auc_roc`：在截止日重算的风险分、逻辑回归、随机森林；0.5 即随机水平 |
+| 各风险等级的预测流失率 | 柱状图 | `gold_churn_scores_by_risk` | 按 `risk_band` 取 `avg(churn_probability)` |
 
 Run 5：风险等级 Medium 28,462、High 9,976、Low 4,759、Very Low 1,740；优先级 MEDIUM 28,769、HIGH 14,487、LOW 1,681。
+
+Run 7：在留出客户上，风险分的 AUC 为 0.496，两个流失模型为 0.512 和 0.518，所以在这份数据上，风险分和模型都不能预测流失（见设计文档第 9 节步骤 6）。最后两张图展示的就是这一点：风险等级可以描述客户，但不能据此排出谁会流失。
 
 **验收**：名单表格只出现 `full_name_masked`，不出现任何真实姓名。
 

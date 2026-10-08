@@ -25,7 +25,8 @@ params:
   show_values: false
   y_axis_format: SMART_NUMBER
   viz_type: heatmap_v2
-  datasource: 10__table
+  datasource: 13__table
+  annotation_layers: []
 query_context: null
 cache_timeout: null
 uuid: aa80f62d-2f3d-4ef8-804a-045767041a80

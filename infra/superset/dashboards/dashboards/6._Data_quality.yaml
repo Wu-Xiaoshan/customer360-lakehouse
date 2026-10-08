@@ -64,7 +64,7 @@ position:
     meta:
       width: 6
       height: 50
-      chartId: 29
+      chartId: 21
       sliceName: Orphans before and after cleaning
       uuid: 9688a431-5c9f-4129-af0a-773fb38d9663
   CHART-rate:
@@ -78,7 +78,7 @@ position:
     meta:
       width: 6
       height: 50
-      chartId: 30
+      chartId: 25
       sliceName: Rejection rate per source
       uuid: 259fe3f9-9ba6-4cfc-a96c-677c5181b9d2
   ROW-0:
@@ -103,7 +103,7 @@ position:
     meta:
       width: 6
       height: 55
-      chartId: 31
+      chartId: 26
       sliceName: Rejection reasons
       uuid: b6812c40-a05f-4e75-b24d-7049ac8286b0
   CHART-warns:
@@ -142,7 +142,7 @@ position:
     meta:
       width: 12
       height: 40
-      chartId: 33
+      chartId: 20
       sliceName: Ingestion time
       uuid: 9db0ee67-d582-46f7-97cf-c49d526a55dc
   ROW-2:

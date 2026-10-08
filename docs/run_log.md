@@ -435,3 +435,126 @@ Everything else equals Run 5: the DQ totals, `customer_360` with 48,200 rows for
 48,200 customers, the segments, risk levels, priorities and the `integrity` batch.
 
 **Next.** Design document §9 step 5, Superset.
+
+---
+
+## Run 7 — 2026-10-08 — churn classifier
+
+**Goal.** Design document §9 step 6: train a churn classifier on purchase, support and
+profile history, evaluate it on held-out customers next to the rule-based risk score
+of Gold, and score every customer.
+
+**Definition.** The cutoff is 2025-09-02, 90 days before the reference date. The
+population is every customer with a successful order before the cutoff. A customer is
+churned if they place no successful order from the cutoff to 2025-12-01. Features use
+only data dated before the cutoff, and the program stops if an order on or after the
+cutoff reaches them.
+
+**Found before running.** The label barely depends on purchase history. Of 43,683
+customers in the population, 30,787 (70.5%) churn, and the rate hardly moves with what
+a churn model would use:
+
+| Successful orders before the cutoff | Customers | Churned |
+|---|---|---|
+| 1 | 10,210 | 71.5% |
+| 2 | 12,417 | 70.8% |
+| 3 | 9,814 | 70.8% |
+| 4 | 6,147 | 70.3% |
+| 5 | 3,009 | 68.9% |
+| 6 | 1,254 | 66.8% |
+| 7 | 525 | 64.4% |
+| 8 or more | 307 | 53.7% |
+
+| Days since the last order, at the cutoff | Customers | Churned |
+|---|---|---|
+| 0–90 | 14,031 | 69.8% |
+| 91–180 | 9,826 | 70.2% |
+| 181–365 | 12,184 | 71.5% |
+| over 365 | 7,642 | 70.5% |
+
+Successful orders are spread evenly over time, about 16,800 per quarter. The figures
+fit orders that are assigned to customers at random, in which case past behaviour
+cannot say who orders next. A trial of the model stage on the Run 6 Silver tables in
+local mode gave a held-out AUC of 0.496 for the rule-based score and 0.512 and 0.518
+for the two models.
+
+**Changes.**
+
+| File | Change |
+|---|---|
+| `src/ml/churn_model.py` | new: features at a reference date, label, hash-based test split (one customer in five), logistic regression and random forest tuned by 3-fold cross-validation, the Gold risk score recomputed at the cutoff as a baseline, scores for every customer |
+| `gold_metrics.py` | `build_rfm` takes an optional `as_of`, so the baseline can be computed at the cutoff; the default is unchanged |
+| `run_pipeline.sh` | stage 4, the churn model |
+| `requirements.txt` | `numpy`, which `pyspark.ml` needs |
+
+New tables: `gold.churn_scores`, overwritten per run, and `metadata.ml_metrics`,
+appended per run with one row per model and one for the rule-based score.
+
+**Plan.** Run the pipeline in iceberg mode, then in local mode into an empty
+`/tmp/c360_local`. Check that Gold equals Run 6, that the test and training customers
+do not overlap, that `churn_scores` has 44,937 rows with probabilities in [0, 1], and
+that the metrics equal the local trial. Extend the cross-check with `churn_scores` and
+the latest `ml_metrics` batch and require all 28 comparisons to match. Record the time
+of stage 4.
+
+**Result.** Succeeded after two fixes that the cross-check exposed. Neither the
+rule-based risk score nor the models predict churn on this data.
+
+| Pass | Run | What ran | Cross-check |
+|---|---|---|---|
+| 1 | `run_20261008T195210Z` and local | full pipeline, both modes | 27 of 28: `ml_metrics` differs by up to 3.1e-6 |
+| 2 | `run_20261008T201026Z` and local | full pipeline, money features rounded to cents | 27 of 28: up to 3.7e-6 |
+| 3 | `run_20261008T202746Z` and local | stage 4 only, exact AUC curves | 28 of 28; largest difference 1.0e-15 |
+| 4 | `run_20261008T203554Z` | full pipeline, iceberg, final code; `docs/pipeline_run.log` | metrics equal pass 3 |
+
+The scores in `churn_scores` were identical in every pass. The two fixes:
+- **Money features.** Unrounded, `monetary` differed between the modes by up to 4.7e-10 for 4,132 customers, from the order in which partial sums are added. Rounding to cents, as Gold does, removes it.
+- **AUC curves.** `BinaryClassificationEvaluator` groups the sorted scores into 1,000 bins by default, and the grouping depends on how Spark samples them. `numBins=0` computes the exact curve.
+
+The batches of passes 1 and 2 remain in `metadata.ml_metrics` under their run_ids.
+
+| Run | Mode | Start | Total | Stage 4 |
+|---|---|---|---|---|
+| 7, pass 4 | iceberg | 22:35:54 | 7 min 26 s | 2 min 48 s |
+| 7, pass 2 | local | 22:17:38 | 6 min 58 s | 2 min 45 s |
+
+Population 43,683, of whom 30,787 (70.5%) churned. Training set 34,980 customers,
+test set 8,703, with 70.1% churned.
+
+| Score | Test AUC-ROC | Test AUC-PR | CV AUC | Chosen parameters |
+|---|---|---|---|---|
+| rule-based risk score at the cutoff | 0.4964 | 0.7015 | — | — |
+| logistic regression | 0.5124 | 0.7061 | 0.5155 | `regParam` 0.1 |
+| random forest | 0.5182 | 0.7046 | 0.5185 | 100 trees, depth 5 |
+
+With 6,098 churned and 2,605 retained test customers, the standard error of an AUC near
+0.5 is about 0.007 (Hanley–McNeil). The rule-based score is therefore at chance, and
+the random forest, the better model, is 0.018 above it. AUC-PR is close to the 70.1%
+base rate for all three.
+
+The random forest relies most on distinct categories (importance 0.151), frequency
+(0.135) and monetary (0.123). In the logistic regression the largest standardised
+coefficient is frequency, −0.030: more orders, slightly less churn.
+
+`gold.churn_scores` holds the random forest's probability, the model with the higher
+cross-validated AUC, for all 44,937 customers with a successful order: 0.45 to 0.74,
+mean 0.70. Averaged by rule-based risk level it is flat: 69.5% for Very Low, 69.6%
+for Low, 70.3% for Medium and 70.4% for High.
+
+Silver and Gold equal Run 6: DQ totals, `customer_360` with 48,200 rows, segments,
+risk levels and priorities.
+
+Superset: Dashboard 3 gained a row with *Model versus rule (AUC)* and *Predicted churn
+by risk level*, built on two new SQL datasets. The bundle in `infra/superset/dashboards/`
+was re-exported from an instance freshly imported from the repository. Besides
+Dashboard 3 and the four new files, the export changes:
+- the instance-specific dataset ids in the chart parameters
+- the `annotation_layers: []` default the importer adds
+- the mode of the YAML files, from 755 to 644
+
+**Finding.** On this dataset the risk levels and campaign priorities of Dashboard 3
+describe customers but do not predict who leaves, and no model trained on the same
+history does much better. The cause is in the data, as the tables before the run
+show: past purchases barely change the chance of ordering again.
+
+**Next.** Design document §9 step 7.

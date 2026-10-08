@@ -30,7 +30,8 @@ params:
   x_axis_sort: Customers
   x_axis_sort_asc: true
   viz_type: echarts_timeseries_bar
-  datasource: 1__table
+  datasource: 5__table
+  annotation_layers: []
 query_context: null
 cache_timeout: null
 uuid: 6a674797-064a-4977-a286-1aae2c3cd7a3

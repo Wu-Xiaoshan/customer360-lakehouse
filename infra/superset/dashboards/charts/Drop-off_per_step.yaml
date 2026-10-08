@@ -36,7 +36,8 @@ params:
   x_axis_sort: step_label
   x_axis_sort_asc: true
   viz_type: echarts_timeseries_bar
-  datasource: 11__table
+  datasource: 8__table
+  annotation_layers: []
 query_context: null
 cache_timeout: null
 uuid: af84da21-9986-45c7-b623-2d8fa208833b

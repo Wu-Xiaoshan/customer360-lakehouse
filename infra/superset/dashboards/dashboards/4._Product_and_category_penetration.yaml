@@ -63,7 +63,7 @@ position:
     meta:
       width: 6
       height: 50
-      chartId: 19
+      chartId: 23
       sliceName: Penetration by category
       uuid: 19869863-bac2-4360-a01b-a6fc4960c819
   CHART-rev:
@@ -77,7 +77,7 @@ position:
     meta:
       width: 6
       height: 50
-      chartId: 20
+      chartId: 28
       sliceName: Revenue by category
       uuid: f0f3dddd-3753-4bc8-bb51-074c0602aa8b
   ROW-0:
@@ -102,7 +102,7 @@ position:
     meta:
       width: 4
       height: 50
-      chartId: 21
+      chartId: 16
       sliceName: Favourite category
       uuid: d7d1470a-3d40-4001-8682-a2e74448a9ae
   CHART-pay:
@@ -130,7 +130,7 @@ position:
     meta:
       width: 4
       height: 50
-      chartId: 23
+      chartId: 27
       sliceName: Repeat versus one-off
       uuid: 33712beb-5011-4eb3-af92-7fd2aa63df54
   ROW-1:

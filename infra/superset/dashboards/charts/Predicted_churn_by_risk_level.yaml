@@ -1,0 +1,39 @@
+slice_name: Predicted churn by risk level
+description: Average churn probability from gold.churn_scores for each rule-based
+  risk level.
+certified_by: null
+certification_details: null
+viz_type: echarts_timeseries_bar
+params:
+  x_axis: risk_band
+  metrics:
+  - expressionType: SQL
+    sqlExpression: AVG(churn_probability)
+    label: Predicted churn
+  groupby: []
+  adhoc_filters: []
+  xAxisLabelRotation: 0
+  orientation: vertical
+  stack: null
+  show_value: true
+  show_legend: false
+  row_limit: 100
+  y_axis_format: .1%
+  y_axis_bounds:
+  - 0
+  - 1
+  truncate_metric: true
+  rich_tooltip: true
+  color_scheme: supersetColors
+  x_axis_title: ''
+  y_axis_title: ''
+  y_axis_title_position: Left
+  x_axis_sort: risk_band
+  x_axis_sort_asc: true
+  viz_type: echarts_timeseries_bar
+  datasource: 16__table
+query_context: null
+cache_timeout: null
+uuid: 6363e37c-84ad-46ac-9258-308aed0bb6cc
+version: 1.0.0
+dataset_uuid: 5826fe34-74a0-42d8-aef3-14fd19849da7

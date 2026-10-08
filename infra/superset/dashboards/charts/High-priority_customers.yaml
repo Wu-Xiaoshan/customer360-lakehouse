@@ -35,7 +35,8 @@ params:
   table_timestamp_format: smart_date
   order_desc: true
   viz_type: table
-  datasource: 1__table
+  datasource: 5__table
+  annotation_layers: []
 query_context: null
 cache_timeout: null
 uuid: 3a64ac6b-0388-43e1-a5fc-2c697838b612

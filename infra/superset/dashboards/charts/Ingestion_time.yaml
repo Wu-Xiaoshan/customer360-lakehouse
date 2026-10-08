@@ -30,7 +30,8 @@ params:
   x_axis_sort: Seconds
   x_axis_sort_asc: false
   viz_type: echarts_timeseries_bar
-  datasource: 14__table
+  datasource: 10__table
+  annotation_layers: []
 query_context: null
 cache_timeout: null
 uuid: 9db0ee67-d582-46f7-97cf-c49d526a55dc
