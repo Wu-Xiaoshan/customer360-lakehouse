@@ -2,6 +2,14 @@
 
 Source CSVs. Not version-controlled.
 
+Download `archive.zip` (74 MB, Kaggle account required) from
+https://www.kaggle.com/datasets/vinaykandimalla/customer-360 and extract the five CSVs
+into this directory, from the repository root:
+
+```bash
+python3 -m zipfile -e archive.zip data/
+```
+
 | File | Size | Content |
 |---|---|---|
 | `orders_300k_dirty.csv` | 34 MB | 300k orders |

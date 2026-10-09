@@ -1,7 +1,7 @@
 # 设计文档 — Customer 360 湖仓平台
 
 > Final Project · ID2221 Data-Intensive Computing
-> **状态：实现中。** pipeline 已在 Iceberg 上端到端运行，产出每个客户一行的 Customer 360 表，在 local Parquet 上结果完全一致；Trino 以只读方式对外提供查询，六个 Superset 面板展示结果，并训练了流失分类器与规则化风险分对比。下一步是第 9 节的步骤 7。计划和分工见第 9 节，每次运行的数字见 `run_log.md`，待办见第 10 节。
+> **状态：已完成。** pipeline 已在 Iceberg 上端到端运行，产出每个客户一行的 Customer 360 表，在 local Parquet 上结果完全一致；Trino 以只读方式对外提供查询，六个 Superset 面板展示结果，并训练了流失分类器与规则化风险分对比。全新 clone 能复现报告（`docs/report.pdf`）里的每一个数字。计划和分工见第 9 节，每次运行的数字见 `run_log.md`，待办见第 10 节。
 
 ---
 
@@ -253,7 +253,8 @@ customer360-lakehouse/          # 位于 WSL 内的 ~/customer360-lakehouse
 ├── docs/
 │   ├── design_document.md    # 本文档（英文版，另有中文版）
 │   ├── dashboard_blueprint.md# dashboard 搭建规格（另有中文版）
-│   └── run_log.md            # 每次 pipeline 运行的计划和结果
+│   ├── run_log.md            # 每次 pipeline 运行的计划和结果
+│   └── report.pdf / .docx    # 两页项目报告
 ├── infra/
 │   ├── docker-compose.yml    # MinIO + mc + Spark + REST catalog + Trino + Superset
 │   ├── trino/                # Trino 的 catalog 配置和访问规则
@@ -361,7 +362,7 @@ Drill to detail 能打开图表背后的 `customer_360` 明细行，Customer ID 
 
 | 打分 | AUC-ROC | AUC-PR |
 |---|---|---|
-| 规则化风险分（在截止日重新计算） | 0.496 | 0.702 |
+| 规则化风险分（在截止日重新计算） | 0.496 | 0.701 |
 | 逻辑回归 | 0.512 | 0.706 |
 | 随机森林 | 0.518 | 0.705 |
 
@@ -376,9 +377,13 @@ Drill to detail 能打开图表背后的 `customer_360` 明细行，Customer ID 
 
 修正 cross-check 发现的两处问题之后，local 和 iceberg 两种模式的结果完全一致，28 项全部通过。两处问题是：金额特征改为精确到分；AUC 改为精确计算，而不用 Spark 默认的分箱近似。第 4 阶段耗时约 3 分钟。详见 `run_log.md` 的 Run 7。
 
-### 步骤 7 — 整合与交付
+### 步骤 7 — 整合与交付 · 已完成
 
-全新 clone 一份，执行 `docker compose up -d` 和 `./run_pipeline.sh`，必须能复现报告里的每一个数字。然后写 README、两页报告和运行说明。
+Run 8 把仓库 clone 到一个新目录，用独立的 compose 项目启动，所有卷都是空的。然后严格按 `README.md` 的步骤运行，报告里的每一个数字都复现了：13 项检查共 47 个值，包括精确到六位小数的三个 AUC。冷启动下 pipeline 耗时 8 分 14 秒。Superset 在首次启动时就导入了六个面板，那时还没有任何表；pipeline 跑完后六个面板都能正常渲染。
+
+这次验证发现一个缺口：README 里没有说明去哪里下载 CSV。现在 `data/README.md` 给出了 Kaggle 链接和解压命令。
+
+报告是 `docs/report.pdf`，Word 源文件是 `docs/report.docx`，两页内容涵盖做了什么、数据集、方法、结果和运行方式。
 
 ### 分工
 

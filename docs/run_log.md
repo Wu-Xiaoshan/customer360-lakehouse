@@ -558,3 +558,67 @@ history does much better. The cause is in the data, as the tables before the run
 show: past purchases barely change the chance of ordering again.
 
 **Next.** Design document §9 step 7.
+
+---
+
+## Run 8 — 2026-10-09 — reproduction from a fresh clone
+
+**Goal.** Design document §9 step 7: show that a fresh clone, the source CSVs and the
+commands in `README.md` reproduce every number of the report, with nothing carried over
+from earlier runs.
+
+**Found before running.** Nothing in `README.md` or `data/README.md` said where to get
+the CSVs; only the design document named the Kaggle page. `data/README.md` now gives
+the link and a command to extract `archive.zip`, and `README.md` points to it.
+
+**Plan.** Clone commit `cdf1c64` into `~/c360-fresh`. The GitHub repository is private,
+so the clone is taken from the local repository, which is at the same commit as
+`origin/main`. Extract the Kaggle `archive.zip` into `data/` as `data/README.md`
+describes. Stop the existing stack with `docker compose down`, which keeps its volumes,
+because the containers have fixed names. Start the clone under the compose project name
+`c360fresh`, so that every volume is new and empty, then follow `README.md` section B
+step by step.
+
+Compare with Run 7:
+- per-source quarantine counts
+- `customer_360` rows
+- segments, risk levels and priorities
+- category penetration, the funnel and cart abandoners
+- the `orders → product` orphans
+- the three AUCs to six decimals
+- `churn_scores` rows
+
+Screenshot the six dashboards that Superset imports on its first start. Then remove the
+fresh stack with its volumes, restart the original one, and check that its data is
+intact.
+
+**Result.** A fresh clone reproduces every number. All 13 checks pass, 47 values in
+total, exactly as in Run 7:
+- the quarantined and total rows of each source
+- `customer_360` with 48,200 rows and 48,200 ids
+- segments, risk levels and priorities
+- the nine category penetration rates
+- the funnel and the 20,652 cart abandoners
+- 0 and 33,022 `orders → product` orphans against Bronze and Silver
+- the three AUC-ROC and AUC-PR values to six decimals
+- 44,937 churn scores
+
+| Step | Time |
+|---|---|
+| `docker compose up -d --build` until Trino answers | 79 s |
+| pipeline `run_20261008T233213Z`, 01:32:13 to 01:40:27 | 8 min 14 s |
+| Bronze / Silver / Gold / churn model | 53 s / 3 min 15 s / 1 min 14 s / 2 min 52 s |
+
+The run was about 50 s slower than Run 7, pass 4. The containers were cold, and Superset was starting at the same time.
+
+The new catalog was empty before the pipeline ran: `SHOW SCHEMAS` listed only
+`information_schema` and `system`. Superset imported the six dashboards on its first
+start, before any table existed, and stayed healthy. After the pipeline all six rendered
+without errors in the screenshots, with the Run 7 figures.
+
+Afterwards `docker compose down -v` removed the `c360fresh` volumes, and the original
+stack restarted on its own volumes. The same 13 checks passed on it, `metadata.ml_metrics`
+still held its four batches, and the dashboards still rendered. The Spark container had
+written `__pycache__` files into the clone as root, so the clone had to be deleted as root.
+
+**Next.** The report, `docs/report.docx` and `docs/report.pdf`.

@@ -6,6 +6,8 @@ systems into a governed Customer 360 view and a set of analytics tables.
 Apache Iceberg on MinIO, PySpark processing, Trino query layer, Superset dashboards,
 running on Docker.
 
+The project report is [docs/report.pdf](docs/report.pdf).
+
 ## Architecture
 
 ```
@@ -31,6 +33,9 @@ negative prices, inconsistent casing, multi-value fields and cross-field contrad
 | product | 500 | product dimension |
 
 ## Running
+
+Both setups read the five source CSVs from `data/`; [data/README.md](data/README.md)
+says where to download them.
 
 ### A. Baseline (local Parquet, no Docker)
 
@@ -62,8 +67,9 @@ export LOCAL_DATA=/home/iceberg/data
 Writes to `demo.{bronze,silver,quarantine,gold,metadata}.*`. Namespaces are created
 by `lakehouse_io.ensure_namespaces()`.
 
-Both modes run the same code. A table-by-table comparison of the two, covering all 23
-tables and the run metadata, found them identical (`docs/run_log.md`, Runs 4 to 6).
+Both modes run the same code. A table-by-table comparison of the two, covering all 24
+tables, the model metrics and the run metadata, found them identical
+(`docs/run_log.md`, Runs 4 to 7).
 
 Every time-based metric is measured from `AS_OF_DATE` (default 2025-12-01, the last
 order date), and records dated after it are rejected. Behaviour metrics cover the
@@ -187,6 +193,7 @@ docs/
   design_document.md   design, data findings, implementation plan
   dashboard_blueprint.md  chart-by-chart dashboard specification
   run_log.md           plan and results of every pipeline run
+  report.pdf           two-page project report (Word source: report.docx)
 infra/
   docker-compose.yml   Spark, Iceberg REST catalog, MinIO, Trino, Superset
   trino/               Trino catalog and access rules

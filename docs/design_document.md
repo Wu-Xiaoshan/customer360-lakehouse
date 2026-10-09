@@ -1,7 +1,7 @@
 # Design Document — Customer 360 Lakehouse Platform
 
 > Final Project · ID2221 Data-Intensive Computing
-> **Status: implementation in progress.** The pipeline runs end to end on Iceberg and produces a Customer 360 table with one row per customer, with identical results on local Parquet. Trino serves it read-only, six Superset dashboards show it, and a churn classifier is evaluated against the rule-based risk score. §9 step 7 is next. The plan and the division of work are in §9, the numbers from each run are in `run_log.md`, and the open items are in §10.
+> **Status: complete.** The pipeline runs end to end on Iceberg and produces a Customer 360 table with one row per customer, with identical results on local Parquet. Trino serves it read-only, six Superset dashboards show it, and a churn classifier is evaluated against the rule-based risk score. A fresh clone reproduces every number in the report (`docs/report.pdf`). The plan and the division of work are in §9, the numbers from each run are in `run_log.md`, and the open items are in §10.
 
 ---
 
@@ -253,7 +253,8 @@ customer360-lakehouse/          # lives at ~/customer360-lakehouse inside WSL
 ├── docs/
 │   ├── design_document.md    # this document (and a Chinese copy)
 │   ├── dashboard_blueprint.md# dashboard build specification (and a Chinese copy)
-│   └── run_log.md            # plan and results of every pipeline run
+│   ├── run_log.md            # plan and results of every pipeline run
+│   └── report.pdf / .docx    # two-page project report
 ├── infra/
 │   ├── docker-compose.yml    # MinIO + mc + Spark + REST catalog + Trino + Superset
 │   ├── trino/                # Trino catalog and access rules
@@ -361,7 +362,7 @@ Median load time over three loads, until every chart has rendered: 4.7 s for Das
 
 | Score | AUC-ROC | AUC-PR |
 |---|---|---|
-| rule-based risk score, recomputed at the cutoff | 0.496 | 0.702 |
+| rule-based risk score, recomputed at the cutoff | 0.496 | 0.701 |
 | logistic regression | 0.512 | 0.706 |
 | random forest | 0.518 | 0.705 |
 
@@ -376,9 +377,13 @@ The risk levels and campaign priorities of Dashboard 3 are therefore descriptive
 
 The results are identical in local and iceberg mode, 28 of 28 tables, after two fixes found by the cross-check: money features rounded to cents, and exact AUC curves instead of Spark's binned default. Stage 4 takes about 3 minutes. Details are in Run 7 of `run_log.md`.
 
-### Step 7 — Integration and deliverables
+### Step 7 — Integration and deliverables · DONE
 
-A fresh clone plus `docker compose up -d` and `./run_pipeline.sh` must reproduce every number in the report. Write the README, the two-page report and the run instructions.
+Run 8 cloned the repository into a new directory and started it under its own compose project, so every volume was empty. It then followed `README.md` exactly and reproduced every number of the report: 13 checks covering 47 values, including the three AUCs to six decimals. The pipeline took 8 min 14 s from cold. Superset imported the six dashboards on its first start, before any table existed, and all of them rendered once the pipeline had run.
+
+The test found one gap: nothing in the README said where to get the CSVs. `data/README.md` now gives the Kaggle link and the command to extract them.
+
+The report is `docs/report.pdf`, with its Word source `docs/report.docx`: two pages on what we did, the dataset, the method, the results and how to run the code.
 
 ### Division of work
 
