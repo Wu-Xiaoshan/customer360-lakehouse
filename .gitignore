@@ -13,6 +13,9 @@ derby.log
 # credentials
 .env
 
+# project documents, kept locally
+docs/
+
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
